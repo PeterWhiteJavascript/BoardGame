@@ -1,0 +1,17 @@
+{
+    "name": "BoardGame",
+    "version": "1.0.0",
+    "keywords": [
+        "util",
+        "functional",
+        "server",
+        "client",
+        "browser"
+    ],
+    "author": "pete",
+    "contributors": [],
+    "dependencies": {
+        "express": "^4.16.4",
+        "socket.io": "^2.2.0"
+    }
+}
