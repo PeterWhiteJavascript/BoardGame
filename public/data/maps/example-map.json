@@ -1,0 +1,172 @@
+{
+    "tiles" : [
+        {
+            "x": 0,
+            "y": 3,
+            "value": 260,
+            "cost": 120,
+            "rank": 1,
+            "name": "Bakery",
+            "district": 0,
+            "move": {
+                "dir": ["right"],
+                "type": "normal"
+            }
+        },
+        {
+            "x": 2,
+            "y": 2,
+            "value": 260,
+            "cost": 120,
+            "rank": 1,
+            "name": "Bakery",
+            "district": 0,
+            "move": {
+                "dir": ["right"],
+                "type": "normal"
+            }
+        },
+        {
+            "x": 4,
+            "y": 2,
+            "value": 220,
+            "cost": 80,
+            "rank": 1,
+            "name": "Lemonade Stall",
+            "district": 0,
+            "move": {
+                "dir": ["left", "right"],
+                "type": "normal"
+            }
+        },
+        {
+            "x": 6,
+            "y": 4,
+            "value": 220,
+            "cost": 80,
+            "rank": 1,
+            "name": "Lemonade Stall",
+            "district": 0,
+            "move": {
+                "dir": ["left", "right"],
+                "type": "normal"
+            }
+        },
+        {
+            "x": 8,
+            "y": 6,
+            "value": 220,
+            "cost": 80,
+            "rank": 1,
+            "name": "Lemonade Stall",
+            "district": 0,
+            "move": {
+                "dir": ["left"],
+                "type": "normal"
+            }
+        },
+        {
+            "x": 8,
+            "y": 8,
+            "value": 220,
+            "cost": 80,
+            "rank": 1,
+            "name": "Lemonade Stall",
+            "district": 1,
+            "move": {
+                "dir": ["left"],
+                "type": "normal"
+            }
+        },
+        {
+            "x": 6,
+            "y": 8,
+            "value": 220,
+            "cost": 80,
+            "rank": 1,
+            "name": "Lemonade Stall",
+            "district": 1,
+            "move": {
+                "dir": ["left"],
+                "type": "normal"
+            }
+        },
+        {
+            "x": 4,
+            "y": 8,
+            "value": 220,
+            "cost": 80,
+            "rank": 1,
+            "name": "Lemonade Stall",
+            "district": 1,
+            "move": {
+                "dir": ["left"],
+                "type": "normal"
+            }
+        },
+        {
+            "x": 2,
+            "y": 7,
+            "value": 220,
+            "cost": 80,
+            "rank": 1,
+            "name": "Lemonade Stall",
+            "district": 2,
+            "move": {
+                "dir": ["left"],
+                "type": "normal"
+            }
+        },
+        {
+            "x": 1,
+            "y": 5,
+            "value": 220,
+            "cost": 80,
+            "rank": 1,
+            "name": "Lemonade Stall",
+            "district": 2,
+            "move": {
+                "dir": ["left"],
+                "type": "normal"
+            }
+        }
+    ],
+    "districts": [
+        {
+            "color": "pink",
+            "numShops": 5,
+            "stockPrice": 10
+        },
+        {
+            "color": "blue",
+            "numShops": 3,
+            "stockPrice": 10
+        },
+        {
+            "color": "green",
+            "numShops": 2,
+            "stockPrice": 10
+        }
+    ],
+    "map": {
+        "w": 20,
+        "h": 20
+    },
+    "modes": {
+        "ffa": {
+            "startMoney": 2000,
+            "goal": 20000,
+            "bankruptcyLimit": 3
+        },
+        "teams": {
+            "startMoney": 2000,
+            "goal": 20000,
+            "bankruptcyLimit": 3
+        },
+        "timed": {
+            "startMoney": 2000,
+            "turns": 40,
+            "bankruptcyLimit": 3
+        }
+    }
+}
