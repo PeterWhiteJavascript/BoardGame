@@ -12,6 +12,9 @@
     "contributors": [],
     "dependencies": {
         "express": "^4.16.4",
+        "seedrandom": "^2.4.4",
+        "seedrandom                |||": "2.4.4    |||",
+        "seedrandom-rn             |||": "2.5.0    |||",
         "socket.io": "^2.2.0"
     }
 }

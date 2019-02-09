@@ -14,5 +14,37 @@
         "sy":0,
         "w":64,
         "h":64
+    },
+    "arrow-left":{
+        "tilew":32,
+        "tileh":32,
+        "sx":192,
+        "sy":0,
+        "w":32,
+        "h":32
+    },
+    "arrow-up":{
+        "tilew":32,
+        "tileh":32,
+        "sx":224,
+        "sy":0,
+        "w":32,
+        "h":32
+    },
+    "arrow-down":{
+        "tilew":32,
+        "tileh":32,
+        "sx":192,
+        "sy":32,
+        "w":32,
+        "h":32
+    },
+    "arrow-right":{
+        "tilew":32,
+        "tileh":32,
+        "sx":224,
+        "sy":32,
+        "w":32,
+        "h":32
     }
 }

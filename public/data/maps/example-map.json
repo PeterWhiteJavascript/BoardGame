@@ -1,4 +1,4 @@
-{
+    {
     "tiles" : [
         {
             "x": 0,
@@ -7,9 +7,10 @@
             "cost": 120,
             "rank": 1,
             "name": "Bakery",
+            "type": "shop",
             "district": 0,
             "move": {
-                "dir": ["right"],
+                "dir": ["right", "down"],
                 "type": "normal"
             }
         },
@@ -20,9 +21,10 @@
             "cost": 120,
             "rank": 1,
             "name": "Bakery",
+            "type": "shop",
             "district": 0,
             "move": {
-                "dir": ["right"],
+                "dir": ["left","right"],
                 "type": "normal"
             }
         },
@@ -33,6 +35,7 @@
             "cost": 80,
             "rank": 1,
             "name": "Lemonade Stall",
+            "type": "shop",
             "district": 0,
             "move": {
                 "dir": ["left", "right"],
@@ -46,6 +49,7 @@
             "cost": 80,
             "rank": 1,
             "name": "Lemonade Stall",
+            "type": "shop",
             "district": 0,
             "move": {
                 "dir": ["left", "right"],
@@ -59,22 +63,19 @@
             "cost": 80,
             "rank": 1,
             "name": "Lemonade Stall",
+            "type": "shop",
             "district": 0,
             "move": {
-                "dir": ["left"],
+                "dir": ["left", "down"],
                 "type": "normal"
             }
         },
         {
             "x": 8,
             "y": 8,
-            "value": 220,
-            "cost": 80,
-            "rank": 1,
-            "name": "Lemonade Stall",
-            "district": 1,
+            "type": "main",
             "move": {
-                "dir": ["left"],
+                "dir": ["left", "up"],
                 "type": "normal"
             }
         },
@@ -85,6 +86,7 @@
             "cost": 80,
             "rank": 1,
             "name": "Lemonade Stall",
+            "type": "shop",
             "district": 1,
             "move": {
                 "dir": ["left"],
@@ -98,9 +100,10 @@
             "cost": 80,
             "rank": 1,
             "name": "Lemonade Stall",
+            "type": "shop",
             "district": 1,
             "move": {
-                "dir": ["left"],
+                "dir": ["left", "right"],
                 "type": "normal"
             }
         },
@@ -111,9 +114,10 @@
             "cost": 80,
             "rank": 1,
             "name": "Lemonade Stall",
+            "type": "shop",
             "district": 2,
             "move": {
-                "dir": ["left"],
+                "dir": ["up", "right"],
                 "type": "normal"
             }
         },
@@ -124,9 +128,38 @@
             "cost": 80,
             "rank": 1,
             "name": "Lemonade Stall",
+            "type": "shop",
             "district": 2,
             "move": {
-                "dir": ["left"],
+                "dir": ["up", "down"],
+                "type": "normal"
+            }
+        },
+        {
+            "x": 10,
+            "y": 5,
+            "value": 220,
+            "cost": 80,
+            "rank": 1,
+            "name": "Lemonade Stall",
+            "type": "shop",
+            "district": 2,
+            "move": {
+                "dir": ["up", "down"],
+                "type": "normal"
+            }
+        },
+        {
+            "x": 12,
+            "y": 5,
+            "value": 220,
+            "cost": 80,
+            "rank": 1,
+            "name": "Lemonade Stall",
+            "type": "shop",
+            "district": 2,
+            "move": {
+                "dir": ["up", "down"],
                 "type": "normal"
             }
         }
@@ -139,7 +172,7 @@
         },
         {
             "color": "blue",
-            "numShops": 3,
+            "numShops": 2,
             "stockPrice": 10
         },
         {
