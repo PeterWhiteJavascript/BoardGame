@@ -18,32 +18,44 @@ Quintus.Game = function(Q) {
         for(let i = 0; i < gameData.players.length; i++){
             gameData.players[i].sprite = stage.insert(new Q.Player({playerId: gameData.players[i].playerId, loc: gameData.players[i].loc}));
         }
-        gameData.players[0].sprite.showMovementDirections();
         
         Q.addViewport(stage, stage.lists["Player"][0]);
         
-        stage.insert(new Q.MapBorder({w: mapData.data.map.w * Q.c.tileW, h: mapData.data.map.h * Q.c.tileH}));
+        //Include this if we want to see the edge of the map.
+        //stage.insert(new Q.MapBorder({w: mapData.data.map.w * Q.c.tileW, h: mapData.data.map.h * Q.c.tileH}));
+        
+        
         
         stage.on("step", function(){
-            if(Q.inputs["interact"]){
+            if(Q.inputs["confirm"]){
                 Q.socket.emit('inputted', {input: "confirm"});
-                Q.inputs["interact"] = false;
+                stage.trigger("pressedConfirm");
+                Q.inputs["confirm"] = false;
             }
             if(Q.inputs["back"]){
                 Q.socket.emit('inputted', {input: "back"});
+                stage.trigger("pressedBack");
                 Q.inputs["back"] = false;
             }
             if(Q.inputs["left"]){
                 Q.socket.emit("inputted", {input: "left"});
+                stage.trigger("pressedLeft");
+                stage.trigger("directionalInput");
                 Q.inputs["left"] = false;
             } else if(Q.inputs["right"]){
                 Q.socket.emit("inputted", {input: "right"});
+                stage.trigger("pressedRight");
+                stage.trigger("directionalInput");
                 Q.inputs["right"] = false;
             } else if(Q.inputs["up"]){
                 Q.socket.emit("inputted", {input: "up"});
+                stage.trigger("pressedUp");
+                stage.trigger("directionalInput");
                 Q.inputs["up"] = false;
             } else if(Q.inputs["down"]){
                 Q.socket.emit("inputted", {input: "down"});
+                stage.trigger("pressedDown");
+                stage.trigger("directionalInput");
                 Q.inputs["down"] = false;
             }
         });

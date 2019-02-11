@@ -9,11 +9,25 @@ Quintus.GameControl = function(Q) {
         processPlayerMovement: function(input, id){
             let player = Q.GameController.getPlayer(id);
             let tileOn = Q.MapController.getTileAt(player.loc);
-            //TODO: detect if the player should be able to move to another tile with this input.
-            //if()
-            if(tileOn.move.dir[input]){
-                Q.GameController.movePlayer(player, tileOn.move.dir[input]);
+            
+            //TODO: check if the player is going backwards and add a move if they are (this is determined by checking the currentMovementPath)
+            
+            let tileTo = tileOn.move.dir[input];
+            if(tileTo){
+                if(Q.GameState.currentMovementPath.length > 1 && tileTo === Q.GameState.currentMovementPath[Q.GameState.currentMovementPath.length - 2]){
+                    Q.GameState.currentMovementPath.pop();
+                } else {
+                    if(Q.GameState.currentMovementPath.length <= Q.GameState.currentMovementNum){
+                        Q.GameState.currentMovementPath.push(tileTo);
+                    } else {
+                        return false;
+                    }
+                }
+                Q.GameController.movePlayer(player, tileTo);
+            } else {
+                return false;
             }
+            return {loc: tileTo.loc, finish: Q.GameState.currentMovementPath.length === Q.GameState.currentMovementNum + 1};
         },
         
         getTileAt: function(loc){
@@ -170,10 +184,31 @@ Quintus.GameControl = function(Q) {
         }
     });
     
+    Q.GameObject.extend("menuController", {
+        
+    });
+    
     //Functions that are run during gameplay.
     //Add/remove shop from player, stocks, etc...
-    
     Q.GameObject.extend("gameController", {
+        startRollingDie: function(num, player){
+            this.dice = [];
+            for(let i = 0; i < num; i++){
+                this.dice.push(Q.stage(0).insert(new Q.Die({x: player.p.x, y: player.p.y - Q.c.tileH})));
+            }
+            Q.stage(0).on("pressedConfirm", this.dice[0], "slow");
+        },
+        //Stops the first die in the array. Usually there will be only one die, but sometimes there could be two due to an item or something.
+        stopDie: function(num){
+            this.dice[0].stop(num);
+        },
+        allowPlayerMovement: function(num){
+            if(Q.GameState.players[0].sprite){
+                Q.GameState.players[0].sprite.showMovementDirections();
+            }
+            Q.GameState.currentMovementNum = num;
+            Q.GameState.currentMovementPath = [Q.MapController.getTileAt(Q.GameState.players[0].loc)];
+        },
         movePlayer: function(player, tileTo){
             player.loc = tileTo.loc;
             if(player.sprite){
@@ -195,7 +230,9 @@ Quintus.GameControl = function(Q) {
                     stocks: [],
                     investments: [],
                     rank: 1,
-                    maxItems: 1
+                    maxItems: 1,
+                    dieMin: 1,
+                    dieMax: 6
                     //Etc... Add more as I think of more. TODO
                 });
             }
@@ -205,12 +242,13 @@ Quintus.GameControl = function(Q) {
         setUpGameState: function(data){
             let map = Q.MapController.generateMap(data.mapData, data.settings);
             let players = Q.GameController.setUpPlayers(data, map.mainTile);
-            
-            return {map: map, players: players};
+            let turnOrder = Q.shuffleArray(players);
+            return {map: map, players: players, turnOrder: turnOrder, inputState: {func: "playerTurnMainMenu"}};
         }
     });
     Q.MapController = new Q.mapController();
     Q.GameController = new Q.gameController();
+    Q.MenuController = new Q.menuController();
 };
 };
 

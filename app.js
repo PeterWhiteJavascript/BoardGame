@@ -67,8 +67,18 @@ function game(p){
     //Get the default data from the json file.
     this.mapData = JSON.parse(fs.readFileSync(filesFolder + "data/maps/" + this.map));
     this.settings = p.settings;
+    switch(this.settings.mode){
+        case "ffa":
+        case "timed":
+        case "2v2":
+            this.numOfPlayers = 1;//4
+            break;
+        case "custom":
+            this.numOfPlayers = this.settings.numOfPlayers;
+            break;
+    }
     this.Q.c = constants;
-    this.seed = p.seed;
+    this.random = p.random;
     this.initialSeed = p.initialSeed;
     
 }
@@ -92,7 +102,7 @@ io.on('connection', function (socket) {
         gameData[gameRoom] = new game({ 
             host: user,
             map: "example-map.json",
-            seed: seedrandom(randSeed),
+            random: new Math.seedrandom(randSeed),
             initialSeed: randSeed,
             settings: {
                 mode: "ffa"
@@ -117,18 +127,71 @@ io.on('connection', function (socket) {
         socket.broadcast.emit('updated', data);
     });
     
+    //This function takes inputs from the client and precesses them.
     socket.on("inputted", function(data){
         //TODO: using current game state, figure out what this input is for.
         //For now, move the player around.
-        Q.MapController.processPlayerMovement(data.input, user.id);
-        
-        io.in(gameRoom).emit("inputResult", {key: data.input, playerId: user.id, func: "playerMovement", props: [data.input]});
+        let props = {};
+        switch(Q.GameState.inputState.func){
+            //This holds all of the options for the player turn main menu (roll, stocks, shops, view board, view standings, options, view map)
+            case "playerTurnMainMenu":
+                //For now, just send to dice roll when pressing confim from this state.
+                if(data.input === "confirm"){
+                    //TODO: send current selection.
+                    io.in(gameRoom).emit("inputResult", {key: data.input, playerId: user.id, func: "rollDie", props: props});
+                    Q.GameState.inputState = {func: "confirmMovementDieRoll"};
+                }
+                break;
+            case "confirmMovementDieRoll":
+                //Roll the die
+                if(data.input === "confirm"){
+                    let num = ~~(gameData[gameRoom].random() * Q.GameState.players[0].dieMax + 1 - Q.GameState.players[0].dieMin) + Q.GameState.players[0].dieMin;
+                    Q.GameController.allowPlayerMovement(num);
+                    props.move = num;
+                    io.in(gameRoom).emit("inputResult", {key: data.input, playerId: user.id, func: "getDieRollToMovePlayer", props: props});
+                    Q.GameState.inputState = {func: "playerMovement"};
+                } 
+                //Go back to the main menu
+                else if(data.input === "back"){
+                    props.num = 0;
+                    io.in(gameRoom).emit("inputResult", {key: data.input, playerId: user.id, func: "toPlayerTurnMainMenu", props: props});
+                    Q.GameState.inputState = {func: "playerTurnMainMenu"};
+                }
+                
+                break;
+            //When the player is asked if they would like to stop here.
+            case "confirmPlayerMovement":
+                //TODO: control the menu here.
+                if(data.input["confirm"]){
+                    
+                }
+                if(data.input["up"]){
+                    
+                } else if(data.input["down"]){
+                    
+                }
+                break;
+            //When the player is moving after the has been rolled
+            case "playerMovement":
+                let obj = Q.MapController.processPlayerMovement(data.input, user.id);
+                if(obj){
+                    props.input = data.input;
+                    props.locTo = obj.loc;
+                    if(obj.finish){
+                        props.finish = obj.finish;
+                        Q.GameState.inputState = {func: "confimPlayerMovement"};
+                        //TODO: create the menu now.
+                    }
+                    io.in(gameRoom).emit("inputResult", {key: data.input, playerId: user.id, func: "playerMovement", props: props});
+                }
+                break;
+        }
     });
     
     //This user is ready to start the game.
     socket.on("readyToStartGame", function(data){
         user.ready = true;
-        if(gameData[gameRoom].users.length === 2){
+        if(gameData[gameRoom].users.length === gameData[gameRoom].numOfPlayers){
             gameID ++;
             //Check if all users are ready
             let allReady = gameData[gameRoom].users.every((user) => user.ready);

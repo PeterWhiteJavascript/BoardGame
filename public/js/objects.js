@@ -43,14 +43,18 @@ Quintus.Objects = function(Q) {
             this.p.x += Q.c.tileW / 2;
             this.p.y -= Q.c.tileH / 2;
         },
+        destroyArrows: function(){
+            this.directionArrows.forEach((arrow) => { arrow.destroy(); });
+        },
         //Animate the player to the tile that they are going to. Also remove the directional arrows (these are added when the player arrives on the tile).
         moveTo: function(loc){
             let pos = Q.getXY(loc);
-            this.animate({ x: pos.x, y:  pos.y - Q.c.tileH }, 0.25, Q.Easing.Quadratic.InOut, {callback: function(){ this.showMovementDirections(); }});
+            this.animate({ x: pos.x, y:  pos.y - Q.c.tileH }, 0.10, Q.Easing.Quadratic.InOut, {callback: function(){ if(this.p.allowMovement) this.showMovementDirections(); }});
             this.p.loc = loc;
-            this.directionArrows.forEach((arrow) => { arrow.destroy(); });
+            this.destroyArrows();
         },
         showMovementDirections: function(){
+            this.p.allowMovement = true;
             let tileOn = Q.MapController.getTileAt(this.p.loc);
             let dirs = Object.keys(tileOn.move.dir);
             
@@ -95,9 +99,42 @@ Quintus.Objects = function(Q) {
     Q.Sprite.extend("Die", {
         init: function(p){
             this._super(p, {
-                
+                sheet:"die",
+                frame: 0,
+                maxFrame: 5,
+                animSpeed: 5,
+                curStep: 0,
+                cx:0, cy:0,
+                frameRandomSeed: new Math.seedrandom()
             });
+            this.on("step", this, "randomize");
+        },
+        //This is just an animation. The number is decided before the user presses the stop button.
+        randomize: function(){
+            this.p.curStep ++;
+            if(this.p.curStep >= this.p.animSpeed){
+                let newFrame;
+                do {
+                    newFrame = ~~(this.p.frameRandomSeed() * this.p.maxFrame);
+                } while(newFrame === this.p.frame);
+                this.p.frame = newFrame;
+                this.p.curStep = 0;
+            }
+        },
+        slow: function(){
+            this.p.animSpeed = 15;
+            Q.stage(0).off("pressedConfirm", this, "slow");
+        },
+        removeDie: function(){
+            this.destroy();
+            this.stage.off("directionalInput", this, "removeDie");
+        },
+        stop: function(num){
+            this.off("step", this, "randomize");
+            this.p.frame = num - 1;
+            this.stage.on("directionalInput", this, "removeDie");
         }
+                
     });
     Q.UI.Container.extend("MapBorder", {
         init: function(p){

@@ -21,6 +21,16 @@ Quintus.Utility = function(Q) {
         }
         return array;
     };
+    Q.shuffleArray = function(a){
+        var j, x, i;
+        for (i = a.length - 1; i > 0; i--) {
+            j = ~~(Math.random() * (i + 1));
+            x = a[i];
+            a[i] = a[j];
+            a[j] = x;
+        }
+        return a;
+    };
     Q.locsMatch = function(loc1, loc2){
         return loc1[0] === loc2[0] && loc1[1] === loc2[1];
     };

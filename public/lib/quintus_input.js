@@ -62,8 +62,8 @@ Quintus.Input = function(Q) {
   var DEFAULT_KEYS = {
     LEFT: 'left', RIGHT: 'right',
     UP: 'up',     DOWN: 'down',
-    SPACE: 'interact',
-    ENTER: 'interact',
+    SPACE: 'confirm',
+    ENTER: 'confirm',
     ESC: 'menu',
     A: 'cycle-left',
     S: 'back',
