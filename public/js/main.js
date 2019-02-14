@@ -1,6 +1,6 @@
 $(function() {
 var Q = window.Q = Quintus({audioSupported: ['mp3','ogg','wav']}) 
-        .include("Sprites, Scenes, Input, 2D, Anim, Touch, UI, Audio, Game, Objects, Utility, Animations, Viewport, GameControl")
+        .include("Sprites, Scenes, Input, 2D, Anim, Touch, UI, Audio, Game, Objects, Utility, Animations, Viewport, GameControl, Music")
         .setup("quintus", {development:true, width:$("#content-container").width(), height:$("#content-container").height()})
         .touch()
         .controls(true)
@@ -33,6 +33,9 @@ Q.socket.on('connected', function (connectionData) {
     Q.user.gameRoom = connectionData.gameRoom;
     //Load the files that need to be loaded (this is found out server side)
     Q.load(connectionData.loadFiles.join(","),function(){
+        
+        Q.AudioController = new Q.audioController();
+        
         Q.c = Q.assets["data/constants/data.json"];
         Q.setUpAnimations();
         
@@ -44,7 +47,7 @@ Q.socket.on('connected', function (connectionData) {
         //Anything that is shown client side will be correct, unless the user is trying to cheat.
         //Override any changes with these values just in case.
         Q.socket.on("inputResult", function(data){
-            console.log(data)
+            let player;
             switch(data.func){
                 case "rollDie":
                     Q.GameController.startRollingDie(1, Q.GameState.turnOrder[0].sprite);
@@ -55,7 +58,7 @@ Q.socket.on('connected', function (connectionData) {
                     Q.GameController.allowPlayerMovement(data.props.move);
                     break;
                 case "playerMovement":
-                    let player = Q.GameController.getPlayer(data.playerId);
+                    player = Q.GameController.getPlayer(data.playerId);
                     Q.GameController.movePlayer(player, {loc: data.props.locTo});
                     if(data.props.finish){
                         player.sprite.destroyArrows();
@@ -66,6 +69,21 @@ Q.socket.on('connected', function (connectionData) {
                 case "toPlayerTurnMainMenu":
                     let menuOptionSelected = data.props[0];
                     
+                    break;
+                //TODO: move the curor up/down/whatever in the menu
+                case "navigateMenu":
+                    
+                    break;
+                case "playerConfirmMove":
+                    // TODO: on tile effects.
+                    
+                    
+                    break;
+                case "playerGoBackMove":
+                    Q.GameState.currentMovementPath.pop();
+                    player = Q.GameController.getPlayer(data.playerId);
+                    player.sprite.p.allowMovement = true;
+                    Q.GameController.movePlayer(player, {loc: data.props.locTo});
                     break;
             }
         });

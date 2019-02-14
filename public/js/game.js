@@ -25,7 +25,6 @@ Quintus.Game = function(Q) {
         //stage.insert(new Q.MapBorder({w: mapData.data.map.w * Q.c.tileW, h: mapData.data.map.h * Q.c.tileH}));
         
         
-        
         stage.on("step", function(){
             if(Q.inputs["confirm"]){
                 Q.socket.emit('inputted', {input: "confirm"});

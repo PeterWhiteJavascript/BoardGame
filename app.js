@@ -127,7 +127,7 @@ io.on('connection', function (socket) {
         socket.broadcast.emit('updated', data);
     });
     
-    //This function takes inputs from the client and precesses them.
+    //This function takes inputs from the client and processes them.
     socket.on("inputted", function(data){
         //TODO: using current game state, figure out what this input is for.
         //For now, move the player around.
@@ -159,17 +159,15 @@ io.on('connection', function (socket) {
                 }
                 
                 break;
-            //When the player is asked if they would like to stop here.
-            case "confirmPlayerMovement":
-                //TODO: control the menu here.
-                if(data.input["confirm"]){
-                    
+            case "navigateMenu":
+                props.result = Q.MenuController.processInput(data.input);
+                if(props.result === true){
+                    Q.GameState.inputState["confirmTrue"]();
+                } else if(props.result === false){
+                    Q.GameState.inputState["confirmFalse"]();
                 }
-                if(data.input["up"]){
-                    
-                } else if(data.input["down"]){
-                    
-                }
+                io.in(gameRoom).emit("inputResult", {key: data.input, playerId: user.id, func: "navigateMenu", props: props});
+                
                 break;
             //When the player is moving after the has been rolled
             case "playerMovement":
@@ -179,8 +177,22 @@ io.on('connection', function (socket) {
                     props.locTo = obj.loc;
                     if(obj.finish){
                         props.finish = obj.finish;
-                        Q.GameState.inputState = {func: "confimPlayerMovement"};
-                        //TODO: create the menu now.
+                        Q.GameState.inputState = {
+                            func: "navigateMenu", 
+                            confirmTrue: () => {
+                                Q.GameController.playerConfirmMove(user.id);
+                                Q.GameState.inputState = {func: "playerTurnMainMenu"};
+                                io.in(gameRoom).emit("inputResult", {key: data.input, playerId: user.id, func: "playerConfirmMove", props: props});
+                            }, 
+                            confirmFalse: () => {
+                                let loc = Q.GameController.playerGoBackMove(user.id);
+                                Q.GameState.inputState = {func: "playerMovement"};
+                                props.locTo = loc;
+                                io.in(gameRoom).emit("inputResult", {key: data.input, playerId: user.id, func: "playerGoBackMove", props: props});
+                            }
+                        };
+                        ////This is not added to any stage/scene since those don't exist on the server.
+                        Q.MenuController.initializeTextPrompt(Q.MenuController.menus.text.endRollHere);;
                     }
                     io.in(gameRoom).emit("inputResult", {key: data.input, playerId: user.id, func: "playerMovement", props: props});
                 }

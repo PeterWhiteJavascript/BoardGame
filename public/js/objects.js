@@ -149,7 +149,110 @@ Quintus.Objects = function(Q) {
             });
         }
     });
-    
+    Q.Sprite.extend("Cursor", {
+        init: function(p){
+            this._super(p,{
+                sheet:"cursor", 
+                frame:0
+            });
+        },
+        attachItem: function(item){
+            this.p.itemSprite = this.stage.insert(new Q.Sprite({x: -16, y: 16, w:32, h:32, sheet: "objects", frame:item.tile, item: item}), this);
+        },
+        removeItem: function(){
+            this.p.itemSprite.destroy();
+            this.p.itemSprite = false;
+        }
+    });
+    Q.UI.Container.extend("MenuButtonContainer",{
+        init: function(p){
+            this._super(p, {
+                fill: Q.OptionsController.options.menuColor, 
+                cx: 0, 
+                cy:0,
+                menuButtons: []
+            });
+        },
+        interact: function(button){
+            button.trigger("interactWith", button.p.toContainer);
+        },
+        dehoverAll: function(){
+            for(let i = 0; i < this.p.menuButtons.length; i++){
+                for(let j = 0; j < this.p.menuButtons[i].length; j++){
+                    this.p.menuButtons[i][j].dehover();
+                }
+            }
+        },
+        removeContent:function(){
+            let stage = this.stage;
+            this.children.forEach(function(child){stage.remove(child);});
+            this.p.menuButtons = [];
+        },
+        fillEmptyMenuButtons: function(fillTo){
+            if(!fillTo){
+                fillTo = 0;
+                for(let i = 0; i < this.p.menuButtons.length; i++){
+                    fillTo = Math.max(this.p.menuButtons[i].length, fillTo);
+                }
+            }
+            for(let i = this.p.menuButtons.length - 1; i >= 0; i--){
+                if(!this.p.menuButtons[i].length){ 
+                    this.p.menuButtons.splice(i, 1);
+                    continue;
+                };
+                if(this.p.menuButtons[i].length < fillTo){
+                    let diff = fillTo - this.p.menuButtons[i].length;
+                    for(let j = 0; j < diff; j++){
+                        this.p.menuButtons[i].push(this.p.menuButtons[i][fillTo - diff - 1]);
+                    }
+                }
+            }
+        }
+    });
+    Q.UI.Container.extend("MenuButton", {
+        init: function(p){
+            this._super(p, {
+                w: 140,
+                h: 35,
+                x:5,
+                cx:0, cy:0,
+                fill: "white",
+                selectedColour: "teal",
+                defaultColour: "white"
+            });
+            if(p.label){
+                this.on("inserted", this, "addText");
+            }
+            this.p.defaultRadius = this.p.radius;
+        },
+        dehover:function(){
+            this.p.fill = this.p.defaultColour;
+            this.trigger("dehover");
+            this.p.radius = this.p.defaultRadius;
+        },
+        setFill: function(color){
+            this.p.fill = color || this.p.selectedColour;
+        },
+        hover:function(){
+            for(let i = 0; i < this.container.p.menuButtons.length; i++){
+                for(let j = 0; j < this.container.p.menuButtons[i].length; j++){
+                    this.container.p.menuButtons[i][j].dehover();
+                }
+            }
+            this.setFill();
+            
+            this.stage.insert(this.p.cursor, this.container);
+            this.p.cursor.p.x = this.p.x + this.p.w - 5;
+            this.p.cursor.p.y = this.p.y + 5;
+            this.p.cursor.refreshMatrix();
+            this.p.radius = this.p.defaultRadius / 2;
+            this.trigger("hover");
+        },
+        addText:function(){
+            let size = this.p.size || 14;
+            this.insert(new Q.UI.Text({label: this.p.label, x: this.p.w / 2, y: this.p.h / 2 - size + 2, size: size || 14}));
+        }
+    });
     
     
     

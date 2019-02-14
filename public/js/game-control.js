@@ -184,10 +184,6 @@ Quintus.GameControl = function(Q) {
         }
     });
     
-    Q.GameObject.extend("menuController", {
-        
-    });
-    
     //Functions that are run during gameplay.
     //Add/remove shop from player, stocks, etc...
     Q.GameObject.extend("gameController", {
@@ -209,6 +205,19 @@ Quintus.GameControl = function(Q) {
             Q.GameState.currentMovementNum = num;
             Q.GameState.currentMovementPath = [Q.MapController.getTileAt(Q.GameState.players[0].loc)];
         },
+        //After the player says "yes" to stopping here.
+        playerConfirmMove: function(id){
+            //For now, just make the player able to roll again.
+            
+            
+        },
+        playerGoBackMove: function(id){
+            let player = this.getPlayer(id);
+            Q.GameState.currentMovementPath.pop();
+            let tileTo = Q.GameState.currentMovementPath[Q.GameState.currentMovementPath.length - 1];
+            this.movePlayer(player, tileTo);
+            return tileTo.loc;
+        },  
         movePlayer: function(player, tileTo){
             player.loc = tileTo.loc;
             if(player.sprite){
@@ -244,8 +253,220 @@ Quintus.GameControl = function(Q) {
             let players = Q.GameController.setUpPlayers(data, map.mainTile);
             let turnOrder = Q.shuffleArray(players);
             return {map: map, players: players, turnOrder: turnOrder, inputState: {func: "playerTurnMainMenu"}};
+        },
+        startTurn: function(){
+            
+            
         }
     });
+    
+    
+    //This does not display anything or make sounds. It's run on the client and server.
+    Q.GameObject.extend("menuController", {
+        menus: {
+            "text":{
+                "endRollHere":{
+                    "text": "Would you like to end your roll here?",
+                    "prompt": "confirmation"
+                }
+
+            },
+            "prompts":{
+                "confirmation": [
+                    {"text": "Yes", "func": "returnTrue"},
+                    {"text": "No", "func": "returnFalse"}
+                ]
+
+            }
+
+        },
+        executePromptFunction: function(func){
+            switch(func){
+                case "returnTrue":
+                    return true;
+                case "returnFalse":
+                    return false;
+                case "changeText":
+                    //TODO
+                    break;
+            }
+        },
+        //Takes some json data and uses it to create the proper menu items and functions that are triggered when an option is selected.
+        //This is used only for text. Status menus and other menus are in initializeMenu
+        initializeTextPrompt: function(data){
+            let prompt = this.menus.prompts[data.prompt];
+            this.currentItem = [0, 0];
+            this.itemGrid = [];
+            for(let i = 0 ;i < prompt.length; i++){
+                this.itemGrid.push([prompt[i]]);
+            }
+        },
+        initializeMenu: function(data){
+            
+        },
+        confirmMenuOption: function(){
+            let option = this.itemGrid[this.currentItem[1]][this.currentItem[0]];
+            return this.executePromptFunction(option.func);
+        },
+        keepInRange: function(coord){
+            let currentItem = this.currentItem;
+            currentItem[0] += coord[0];
+            currentItem[1] += coord[1];
+            let itemGrid = this.itemGrid;
+            let maxX, maxY;
+            
+            function getMaxY(){
+                let num = 0;
+                for(let i = 0; i < itemGrid.length; i++){
+                    if(itemGrid[i] && itemGrid[i][currentItem[0]]) num++;
+                }
+                return num - 1;
+            }
+            if(coord[0]) maxX = itemGrid[currentItem[1]].length - 1;
+            if(coord[1]) maxY = getMaxY();
+            if(currentItem[0] > maxX) return [0, currentItem[1]];
+            if(currentItem[1] > maxY) return [currentItem[0], 0];
+            if(currentItem[0] < 0) return [maxX, currentItem[1]];
+            if(currentItem[1] < 0) return [currentItem[0], maxY];
+            return currentItem;
+        },
+        adjustMenuPosition: function(coord){
+            let currentItem = this.currentItem;
+            let itemGrid = this.itemGrid;
+            do {
+                currentItem = this.keepInRange(coord);
+            }
+            while(!itemGrid[currentItem[1]][currentItem[0]]);
+            this.currentItem = currentItem;
+        },
+        processInput: function(input){
+            if(input === "confirm"){
+               return this.confirmMenuOption();
+            } else if(input === "up"){
+                this.adjustMenuPosition([0, -1]);
+            } else if(input === "down"){
+                this.adjustMenuPosition([0, 1]);
+            }
+        }
+    });
+    
+    //Keeps track of the position of the cursor in menus.
+    
+    
+    /*
+    
+    Q.GameObject.extend("menuController",{
+        currentItem: false, 
+        currentCont: false,
+        returnToGame: function(){
+            Q.player.p.canInput = true;
+            Q.clearStage(2);
+            Q.stage(0).unpause();
+        },
+        changeContainer: function(cont, noSound){
+            let currentItem = this.currentItem;
+            let currentCont = this.currentCont;
+            currentCont.p.prevIdx = currentCont.p.saveIdx ? [currentItem[0], currentItem[1]] : [0, 0];
+            currentItem = false;
+            if(!noSound) Q.AudioController.playSound("change-menu.mp3");
+            if(!currentCont.p.noDehover){
+                currentCont.dehoverAll();
+            } else {
+                for(let i = 0; i < cont.p.menuButtons.length; i++){
+                    for(let j = 0; j < cont.p.menuButtons[i].length; j++){
+                        if(cont.p.menuButtons[i][j].p.fill === cont.p.menuButtons[i][j].p.selectedColour) currentItem = [j, i];
+                    }
+                }
+            }
+            this.currentCont = cont;
+            if(!currentItem){
+                this.currentItem = cont.p.prevIdx || [0, 0];
+                this.adjustMenuPosition([0, 0]);
+            }
+        },
+        keepInRange: function(coord){
+            let currentItem = this.currentItem;
+            currentItem[0] += coord[0];
+            currentItem[1] += coord[1];
+            let currentCont = this.currentCont;
+            let buttons = currentCont.p.menuButtons;
+            let maxX, maxY;
+            
+            function getMaxY(){
+                let num = 0;
+                for(let i = 0; i < buttons.length; i++){
+                    if(buttons[i] && buttons[i][currentItem[0]]) num++;
+                }
+                return num - 1;
+            }
+            if(coord[0]) maxX = buttons[currentItem[1]].length - 1;
+            if(coord[1]) maxY = getMaxY();
+            if(currentItem[0] > maxX) return [0, currentItem[1]];
+            if(currentItem[1] > maxY) return [currentItem[0], 0];
+            if(currentItem[0] < 0) return [maxX, currentItem[1]];
+            if(currentItem[1] < 0) return [currentItem[0], maxY];
+            return currentItem;
+        },
+        adjustMenuPosition: function(coord){
+            let currentItem = this.currentItem;
+            let currentCont = this.currentCont;
+            let buttons = currentCont.p.menuButtons;
+            do {
+                currentItem = this.keepInRange(coord);
+            }
+            while(!buttons[currentItem[1]][currentItem[0]]);
+            buttons[currentItem[1]][currentItem[0]].hover();
+            this.currentItem = currentItem;
+        },
+        acceptInputs: function(){
+            if(Q.inputs["down"]){
+                this.adjustMenuPosition([0, 1]);
+                Q.AudioController.playSound("move-cursor.mp3");
+                Q.inputs["down"] = false;
+            } else if(Q.inputs["up"]){
+                this.adjustMenuPosition([0, -1]);
+                Q.AudioController.playSound("move-cursor.mp3");
+                Q.inputs["up"] = false;
+            }
+            if(Q.inputs["left"]){
+                this.adjustMenuPosition([-1, 0]);
+                Q.AudioController.playSound("move-cursor.mp3");
+                Q.inputs["left"] = false;
+            } else if(Q.inputs["right"]){
+                this.adjustMenuPosition([1, 0]);
+                Q.AudioController.playSound("move-cursor.mp3");
+                Q.inputs["right"] = false;
+            }
+            if(Q.inputs["interact"]){
+                this.currentCont.interact(this.currentCont.p.menuButtons[this.currentItem[1]][this.currentItem[0]]);
+                Q.inputs["interact"] = false;
+            }
+            if(Q.inputs["menu"]){
+                this.currentCont.trigger("goBack", this.currentCont.p.prevCont);
+                Q.inputs["menu"] = false;
+            }
+        },
+        acceptInteract: function(){
+            if(Q.inputs["interact"]){
+                Q.inputs["interact"] = false;
+                this.currentCont.trigger("interact");
+            }
+        },
+        //All functions that can happen when answering a question in a menu
+        menuButtonInteractFunction:function(func, props, interactWith){
+            let object, newDialogue;
+            if(typeof func === "string"){
+                switch(func){
+                    case "exitMenu":
+                        this.returnToGame();
+                        break;
+                }
+            } else {
+                func();
+            }
+        }
+    });*/
+    
     Q.MapController = new Q.mapController();
     Q.GameController = new Q.gameController();
     Q.MenuController = new Q.menuController();
