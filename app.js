@@ -192,7 +192,7 @@ io.on('connection', function (socket) {
                             }
                         };
                         ////This is not added to any stage/scene since those don't exist on the server.
-                        Q.MenuController.initializeTextPrompt(Q.MenuController.menus.text.endRollHere);;
+                        Q.MenuController.initializeTextPrompt(Q.MenuController.menus.text.endRollHere);
                     }
                     io.in(gameRoom).emit("inputResult", {key: data.input, playerId: user.id, func: "playerMovement", props: props});
                 }

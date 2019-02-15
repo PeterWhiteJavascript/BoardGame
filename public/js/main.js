@@ -35,6 +35,11 @@ Q.socket.on('connected', function (connectionData) {
     Q.load(connectionData.loadFiles.join(","),function(){
         
         Q.AudioController = new Q.audioController();
+        Q.OptionsController = new Q.optionsController();
+        Q.OptionsController.options = {
+            menuColor: "white"
+        };//GDATA.saveFiles["save-file1.json"].options;
+        Q.TextProcessor = new Q.textProcessor();
         
         Q.c = Q.assets["data/constants/data.json"];
         Q.setUpAnimations();
@@ -63,6 +68,13 @@ Q.socket.on('connected', function (connectionData) {
                     if(data.props.finish){
                         player.sprite.destroyArrows();
                         player.sprite.p.allowMovement = false;
+                        //Create the "do you want to stop here" menu.
+                        Q.stageScene("dialogue", 1, {dialogue: Q.MenuController.menus.text.endRollHere});
+                        if(data.playerId === Q.user.id){
+                            Q.MenuController.initializeTextPrompt(Q.MenuController.menus.text.endRollHere);
+                            Q.stage(0).on("pressedInput", Q.MenuController, "processInput");
+                            Q.stage(1).on("destroyed", function(){Q.stage(0).off("pressedInput", Q.MenuController, "processInput");});
+                        }
                     }
                     break;
                 //When going to the playerTurnMainMenu (also used when going back to it.)
@@ -70,20 +82,27 @@ Q.socket.on('connected', function (connectionData) {
                     let menuOptionSelected = data.props[0];
                     
                     break;
-                //TODO: move the curor up/down/whatever in the menu
+                //TODO: move the cursor up/down/whatever in the menu
                 case "navigateMenu":
-                    
+                    if(Array.isArray(data.props.result)){
+                        //Q.MenuController.currentCont.p.menuButtons[data.props.result[1]][data.props.result[0]].hover();
+                    }
+                    console.log(Q.MenuController)
                     break;
+                //If the player sey yes to ending their move here.
                 case "playerConfirmMove":
                     // TODO: on tile effects.
                     
                     
+                    Q.clearStage(1);
                     break;
+                //If the player says they don't want to end their move here.
                 case "playerGoBackMove":
                     Q.GameState.currentMovementPath.pop();
                     player = Q.GameController.getPlayer(data.playerId);
                     player.sprite.p.allowMovement = true;
                     Q.GameController.movePlayer(player, {loc: data.props.locTo});
+                    Q.clearStage(1);
                     break;
             }
         });

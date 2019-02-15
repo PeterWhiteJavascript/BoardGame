@@ -26,35 +26,38 @@ Quintus.Game = function(Q) {
         
         
         stage.on("step", function(){
+            //TODO: don't do this when it's not the current player's turn.
             if(Q.inputs["confirm"]){
                 Q.socket.emit('inputted', {input: "confirm"});
                 stage.trigger("pressedConfirm");
+                stage.trigger("pressedInput", "confirm");
                 Q.inputs["confirm"] = false;
             }
             if(Q.inputs["back"]){
                 Q.socket.emit('inputted', {input: "back"});
                 stage.trigger("pressedBack");
+                stage.trigger("pressedInput", "back");
                 Q.inputs["back"] = false;
             }
             if(Q.inputs["left"]){
                 Q.socket.emit("inputted", {input: "left"});
                 stage.trigger("pressedLeft");
-                stage.trigger("directionalInput");
+                stage.trigger("pressedInput", "left");
                 Q.inputs["left"] = false;
             } else if(Q.inputs["right"]){
                 Q.socket.emit("inputted", {input: "right"});
                 stage.trigger("pressedRight");
-                stage.trigger("directionalInput");
+                stage.trigger("pressedInput", "right");
                 Q.inputs["right"] = false;
             } else if(Q.inputs["up"]){
                 Q.socket.emit("inputted", {input: "up"});
                 stage.trigger("pressedUp");
-                stage.trigger("directionalInput");
+                stage.trigger("pressedInput", "up");
                 Q.inputs["up"] = false;
             } else if(Q.inputs["down"]){
                 Q.socket.emit("inputted", {input: "down"});
                 stage.trigger("pressedDown");
-                stage.trigger("directionalInput");
+                stage.trigger("pressedInput", "down");
                 Q.inputs["down"] = false;
             }
         });

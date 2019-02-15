@@ -266,7 +266,7 @@ Quintus.GameControl = function(Q) {
         menus: {
             "text":{
                 "endRollHere":{
-                    "text": "Would you like to end your roll here?",
+                    "text": ["Would you like to end your roll here?"],
                     "prompt": "confirmation"
                 }
 
@@ -338,14 +338,19 @@ Quintus.GameControl = function(Q) {
             }
             while(!itemGrid[currentItem[1]][currentItem[0]]);
             this.currentItem = currentItem;
+            //On the client, hover the new button
+            if(this.currentCont){
+                this.currentCont.p.menuButtons[this.currentItem[1]][this.currentItem[0]].hover();
+            }
+            return this.currentItem;
         },
         processInput: function(input){
             if(input === "confirm"){
                return this.confirmMenuOption();
             } else if(input === "up"){
-                this.adjustMenuPosition([0, -1]);
+               return this.adjustMenuPosition([0, -1]);
             } else if(input === "down"){
-                this.adjustMenuPosition([0, 1]);
+               return this.adjustMenuPosition([0, 1]);
             }
         }
     });

@@ -871,7 +871,7 @@ var Quintus = exportTarget[key] = function(opts) {
     @param {String} event - name of event
     @param {Object} [data] - optional data to pass to the callback
     */
-    trigger: function(event,data) {
+    trigger: function(event, data) {
       // First make sure there are any listeners, then check for any listeners
       // on this specific event, if not, early out.
       if(this.listeners && this.listeners[event]) {

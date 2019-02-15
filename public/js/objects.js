@@ -127,12 +127,12 @@ Quintus.Objects = function(Q) {
         },
         removeDie: function(){
             this.destroy();
-            this.stage.off("directionalInput", this, "removeDie");
+            this.stage.off("pressedInput", this, "removeDie");
         },
         stop: function(num){
             this.off("step", this, "randomize");
             this.p.frame = num - 1;
-            this.stage.on("directionalInput", this, "removeDie");
+            this.stage.on("pressedInput", this, "removeDie");
         }
                 
     });
@@ -152,16 +152,9 @@ Quintus.Objects = function(Q) {
     Q.Sprite.extend("Cursor", {
         init: function(p){
             this._super(p,{
-                sheet:"cursor", 
+                sheet:"arrow-left", 
                 frame:0
             });
-        },
-        attachItem: function(item){
-            this.p.itemSprite = this.stage.insert(new Q.Sprite({x: -16, y: 16, w:32, h:32, sheet: "objects", frame:item.tile, item: item}), this);
-        },
-        removeItem: function(){
-            this.p.itemSprite.destroy();
-            this.p.itemSprite = false;
         }
     });
     Q.UI.Container.extend("MenuButtonContainer",{
@@ -207,6 +200,10 @@ Quintus.Objects = function(Q) {
                     }
                 }
             }
+        },
+        processInputs: function(){
+            
+            console.log(Q.MenuController.currentCont)
         }
     });
     Q.UI.Container.extend("MenuButton", {
@@ -242,8 +239,8 @@ Quintus.Objects = function(Q) {
             this.setFill();
             
             this.stage.insert(this.p.cursor, this.container);
-            this.p.cursor.p.x = this.p.x + this.p.w - 5;
-            this.p.cursor.p.y = this.p.y + 5;
+            this.p.cursor.p.x = this.p.x + this.p.w - 15;
+            this.p.cursor.p.y = this.p.y + this.p.h / 2;
             this.p.cursor.refreshMatrix();
             this.p.radius = this.p.defaultRadius / 2;
             this.trigger("hover");
@@ -253,8 +250,154 @@ Quintus.Objects = function(Q) {
             this.insert(new Q.UI.Text({label: this.p.label, x: this.p.w / 2, y: this.p.h / 2 - size + 2, size: size || 14}));
         }
     });
-    
-    
+    Q.UI.Text.extend("ScrollingText",{
+        init: function(p){
+            this._super(p, {
+                x:10, y: 5,
+                align: "left",
+                cx:0, cy:0
+            });
+            this.on("inserted");
+        },
+        inserted: function(){
+            this.calcSize();
+            this.on("interact", this, "doneScrolling");
+        },
+        doneScrolling: function(){
+            this.trigger("doneScrolling");
+        }
+    });
+    Q.GameObject.extend("textProcessor",{
+        evaluateStringConditional:function(vr, op, vl){
+            switch(op){
+                case "==": return vr == vl;
+                case "!=": return vr != vl;
+                case ">": return vr > vl;
+                case "<": return vr < vl;
+                case ">=": return vr >= vl;
+                case "<=": return vr <= vl;
+                case "set": return vl ? vr : !vr;
+            }
+        },
+        getDeepValue:function(obj, path){
+            for (var i=0, path=path.split('.'), len=path.length; i<len; i++){
+                obj = obj[path[i]];
+            };
+            return obj;
+        },
+        //Takes a string and evaluates anything within {} and then returns a new string
+        replaceText:function(text){
+            //Loop through each {}
+            while(typeof text === "string" && text.indexOf("{") !== -1){
+                text = text.replace(/\{(.*?)\}/,function(match, p1, p2, p3, offset, string){
+                    return Q.TextProcessor.getVarValue(p1);
+                });
+            }
+            return text;
+           
+        },
+        getVarValue:function(text){
+            var newText;
+            var category = text[0];
+            var prop = text.slice(text.indexOf("@")+1,text.length);
+            switch(category){
+                //{w@worldVariable}
+                case "w":
+                    newText = Q.DataController.currentWorld[prop];
+                    break;
+            }
+            
+            return newText;
+        }
+    });
+    Q.scene("dialogue", function(stage){
+        let dialogue = stage.options.dialogue.text;
+        let idx = 0;
+        let dialogueBox = stage.insert(new Q.UI.Container({x: Q.width / 2 - 350, y:Q.height - 210, w: 700, h: 200, cx:0, cy:0, fill: Q.OptionsController.options.menuColor, opacity:0.8, border:1}));
+        let textArea = dialogueBox.insert(new Q.UI.Container({x:5, y:5, cx:0, cy:0, w:500, h:190, fill: Q.OptionsController.options.menuColor}));
+        let optionsArea = dialogueBox.insert(new Q.MenuButtonContainer({x:510, y:5, cx:0, cy:0, w:185, h:190, fill: Q.OptionsController.options.menuColor}));
+        optionsArea.displayOptions = function(options){
+            let cursor = new Q.Cursor();
+            optionsArea.p.menuButtons = [];
+            for(let i = 0; i < options.length; i++){
+                let button = optionsArea.insert(new Q.MenuButton({x: 5, y: 5 + 40 * i, w:175, label: options[i].text, func: options[i].func, props:options[i].props, cursor: cursor}));
+                button.on("interactWith", function(){
+                    optionsArea.removeContent();
+                    //If there's no function, we're just cycling text.
+                    if(!this.p.func){
+                        processDialogue();
+                    } else {
+                        let newTextAvailable = Q.MenuController.menuButtonInteractFunction(this.p.func, this.p.props, stage.options);
+                        if(newTextAvailable){
+                            dialogue = newTextAvailable;
+                            idx = 0;
+                            processDialogue();
+                        }
+                    }
+                });
+                optionsArea.p.menuButtons.push([button]);
+            }
+            optionsArea.p.menuButtons[0][0].hover();
+        };
+        function processDialogue(){
+            stage.off("step", Q.MenuController, "acceptInteract");
+            stage.off("step", Q.MenuController, "acceptInputs");
+            let item = dialogue[idx];
+            idx ++;
+            if(!item) return Q.MenuController.returnToGame();
+            
+            if(textArea.p.text) textArea.p.text.destroy();
+            item = Q.TextProcessor.replaceText(item);
+            textArea.p.text = textArea.insert(new Q.ScrollingText({label:item}));
+            textArea.p.text.on("doneScrolling", processDialogue);
+            Q.MenuController.currentCont = textArea.p.text;
+            
+            if(!dialogue[idx + 1]){
+                Q.MenuController.currentCont = optionsArea;
+                Q.MenuController.currentCont.displayOptions(Q.MenuController.menus.prompts[stage.options.dialogue.prompt]);
+            }
+            
+            /*
+            if(typeof item === "string"){
+                //stage.on("step", Q.MenuController, "acceptInteract");
+            } else if(item.options){
+                Q.MenuController.currentCont = optionsArea;
+                Q.MenuController.currentCont.displayOptions(item.options);
+                Q.MenuController.currentItem = [0, 0];
+                Q.MenuController.adjustMenuPosition(Q.MenuController.currentItem);
+                //stage.on("step", Q.MenuController, "acceptInputs");
+            } else if(item.func){
+                let newDialogue = Q.MenuController.dialogueInteractFunction(item, stage.options);
+                if(newDialogue){
+                    idx --;
+                    dialogue.splice(idx, 1);
+                    for(let i = newDialogue.length - 1; i >=0 ; i--){
+                        dialogue.splice(idx, 0, newDialogue[i]);
+                    }
+                }
+                if(dialogue[idx]){
+                    processDialogue();
+                } else {
+                    Q.MenuController.returnToGame();
+                }
+            }
+            if(dialogue[idx] && dialogue[idx].options) processDialogue();*/
+        }
+        processDialogue();
+    });
+    Q.GameObject.extend("optionsController",{
+        toggleBoolOpt:function(opt){
+            if(this.options[opt]) this.options[opt] = false;
+            else this.options[opt] = true;
+            
+            if(opt === "musicEnabled"){
+                Q.audioController.checkMusicEnabled();
+            }
+        },
+        adjustSound:function(){
+            
+        }
+    });
     
     
     
