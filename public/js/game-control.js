@@ -295,6 +295,9 @@ Quintus.GameControl = function(Q) {
             player.turn = true;
             Q.GameState.inputState =  Q.MenuController.inputStates.playerTurnMenu;
             Q.MenuController.initializeMenu(Q.GameState.inputState);
+            if(!Q.isServer() && Q.isActiveUser()){
+                Q.stage(0).insert(new Q.TurnAnimation());
+            }
         }
     });
     

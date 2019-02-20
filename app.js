@@ -155,7 +155,7 @@ io.on('connection', function (socket) {
                 break;
             case "navigateMenu":
                 props = Q.MenuController.processInput(data.input, socket);
-                if(props.func){
+                if(props && props.func){
                     socket.broadcast.to(gameRoom).emit("inputResult", {key: data.input, playerId: user.id, func: props.func, props: props});
                 }
                 break;

@@ -140,9 +140,29 @@ Quintus.Objects = function(Q) {
             this.off("step", this, "randomize");
             this.p.frame = num - 1;
             this.stage.on("pressedInput", this, "removeDie");
-        }
-                
+        }   
     });
+    
+    Q.UI.Container.extend("TurnAnimation", {
+        init: function(p){
+            this._super(p, {
+                x:Q.width / 2,
+                y:Q.height / 12,
+                w: 280,
+                h: 40,
+                fill: "grey"
+            });
+            this.add("tween");
+            this.on("inserted");
+        },
+        inserted: function(){
+            let text = this.insert(new Q.UI.Text({label: "It's your turn!", y: -10}));
+            text.add("tween");
+            text.animate({opacity: 0}, 1, Q.Easing.Quadratic.In, {delay: 0.5, callback: function(){ this.destroy();}});
+            this.animate({opacity: 0}, 1, Q.Easing.Quadratic.In, {delay: 0.5, callback: function(){ this.destroy();}});
+        }
+    });
+    
     Q.UI.Container.extend("MapBorder", {
         init: function(p){
             this._super(p, {
