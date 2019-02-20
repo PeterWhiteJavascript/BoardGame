@@ -51,60 +51,80 @@ Q.socket.on('connected', function (connectionData) {
         //This is the actual result of user actions.
         //Anything that is shown client side will be correct, unless the user is trying to cheat.
         //Override any changes with these values just in case.
-        Q.socket.on("inputResult", function(data){
+        Q.processInputResult = function(data){
             let player;
             switch(data.func){
                 case "rollDie":
+                    Q.clearStage(1);
                     Q.GameController.startRollingDie(1, Q.GameState.turnOrder[0].sprite);
                     break;
-                case "getDieRollToMovePlayer":
+                case "stopDieAndAllowMovement":
                     Q.GameController.stopDie(data.props.move);
                     //TODO: Once all dice are rolled, allow the player movement (right now it just does one die).
                     Q.GameController.allowPlayerMovement(data.props.move);
                     break;
+                case "removeDiceAndBackToPTM":
+                    Q.GameController.removeDice();
+                    data.func = "toPlayerTurnMainMenu";
+                    Q.processInputResult(data);
+                    break;
                 case "playerMovement":
+                    //If there are dice showing, remove them.
+                    if(Q.GameController.dice) Q.GameController.removeDice();
+                    
                     player = Q.GameController.getPlayer(data.playerId);
                     Q.GameController.movePlayer(player, {loc: data.props.locTo});
                     if(data.props.finish){
-                        player.sprite.destroyArrows();
-                        player.sprite.p.allowMovement = false;
-                        //Create the "do you want to stop here" menu.
-                        Q.stageScene("dialogue", 1, {dialogue: Q.MenuController.menus.text.endRollHere});
-                        if(data.playerId === Q.user.id){
-                            Q.MenuController.initializeTextPrompt(Q.MenuController.menus.text.endRollHere);
-                            Q.stage(0).on("pressedInput", Q.MenuController, "processInput");
-                            Q.stage(1).on("destroyed", function(){Q.stage(0).off("pressedInput", Q.MenuController, "processInput");});
-                        }
+                        Q.GameController.askFinishMove(player);
                     }
                     break;
                 //When going to the playerTurnMainMenu (also used when going back to it.)
                 case "toPlayerTurnMainMenu":
-                    let menuOptionSelected = data.props[0];
-                    
+                    Q.GameState.inputState = Q.MenuController.inputStates.playerTurnMenu;
+                    let menuOptionSelected = data.props.num;
+                    //Q.GameState.inputState = Q.MenuController.inputStates.playerTurnMenu;
+                    Q.stageScene("menu", 1, {menu: Q.GameState.inputState, selected: menuOptionSelected});
+                    Q.MenuController.initializeMenu(Q.GameState.inputState);
+                    if(Q.isActiveUser()){
+                        Q.stage(0).on("pressedInput", Q.MenuController, "processInput");
+                        Q.stage(1).on("destroyed", function(){Q.stage(0).off("pressedInput", Q.MenuController, "processInput");});
+                    }
                     break;
                 //TODO: move the cursor up/down/whatever in the menu
                 case "navigateMenu":
-                    if(Array.isArray(data.props.result)){
-                        //Q.MenuController.currentCont.p.menuButtons[data.props.result[1]][data.props.result[0]].hover();
+                    let func = data.func;
+                    if(func === "navigateMenu"){
+                        let pos = data.props.pos.item;
+                        Q.MenuController.currentItem = pos;
+                        Q.MenuController.currentCont.p.menuButtons[Q.MenuController.currentItem[1]][Q.MenuController.currentItem[0]].hover();
+                    } 
+                    //We're doing a menu function
+                    else {
+                        
                     }
-                    console.log(Q.MenuController)
                     break;
                 //If the player sey yes to ending their move here.
                 case "playerConfirmMove":
                     // TODO: on tile effects.
-                    
-                    
                     Q.clearStage(1);
+                    
+                    //For now, just end the turn.
+                    Q.GameController.endTurn();
+                    Q.processInputResult({func: "toPlayerTurnMainMenu", props: {selected: 0} });
+                    
                     break;
                 //If the player says they don't want to end their move here.
                 case "playerGoBackMove":
-                    Q.GameState.currentMovementPath.pop();
                     player = Q.GameController.getPlayer(data.playerId);
                     player.sprite.p.allowMovement = true;
                     Q.GameController.movePlayer(player, {loc: data.props.locTo});
                     Q.clearStage(1);
                     break;
             }
+        };
+        Q.socket.on("inputResult", Q.processInputResult);
+        Q.socket.on("receiveRoll", function(data){
+            Q.GameState.currentMovementNum = data.roll;
         });
         
         Q.socket.emit("readyToStartGame");
@@ -117,7 +137,8 @@ Q.socket.on('connected', function (connectionData) {
                     mapData: Q.assets["data/maps/"+data.map], 
                     settings: data.settings, 
                     host: data.host,
-                    users: users
+                    users: users,
+                    turnOrder: data.turnOrder
                 });
             }
         });

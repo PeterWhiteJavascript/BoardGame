@@ -121,13 +121,20 @@ Quintus.Objects = function(Q) {
                 this.p.curStep = 0;
             }
         },
-        slow: function(){
-            this.p.animSpeed = 15;
-            Q.stage(0).off("pressedConfirm", this, "slow");
+        stopDie: function(input){
+            if(input === "confirm"){
+                Q.stage(0).off("pressedInput", this, "stopDie");
+                Q.processInputResult({func: "stopDieAndAllowMovement", props:{move: Q.GameState.currentMovementNum}});
+            } else if(input === "back"){
+                Q.stage(0).off("pressedInput", this, "stopDie");
+                Q.processInputResult({func: "removeDiceAndBackToPTM", props:{num: 0}});
+            }
         },
         removeDie: function(){
-            this.destroy();
-            this.stage.off("pressedInput", this, "removeDie");
+            //this.stage.off("pressedInput", this, "removeDie");
+            //TODO: figure out if this bind is removed by looking in stage.binds after more than one die has been rolle.d
+            //If it's removed, great. Otherwise, put in settimeout
+            this.stage.remove(this);
         },
         stop: function(num){
             this.off("step", this, "randomize");
@@ -201,9 +208,29 @@ Quintus.Objects = function(Q) {
                 }
             }
         },
-        processInputs: function(){
-            
-            console.log(Q.MenuController.currentCont)
+        displayOptions: function(options){
+            let cursor = new Q.Cursor();
+            this.p.menuButtons = [];
+            let menuButtonCont = this;
+            for(let i = 0; i < options.length; i++){
+                let button = this.insert(new Q.MenuButton({x: 5, y: 5 + 40 * i, w:175, label: options[i][0], func: options[i][1], props:options[i][2], cursor: cursor}));
+                button.on("interactWith", function(){
+                    this.removeContent();
+                    //If there's no function, we're just cycling text.
+                    if(!this.p.func){
+                        processDialogue();
+                    } else {
+                        let newTextAvailable = Q.MenuController.menuButtonInteractFunction(this.p.func, this.p.props, this.stage.options);
+                        if(newTextAvailable){
+                            menuButtonCont.p.dialogue = newTextAvailable;
+                            menuButtonCont.p.idx = 0;
+                            processDialogue();
+                        }
+                    }
+                });
+                this.p.menuButtons.push([button]);
+            }
+            this.p.menuButtons[0][0].hover();
         }
     });
     Q.UI.Container.extend("MenuButton", {
@@ -311,35 +338,14 @@ Quintus.Objects = function(Q) {
         }
     });
     Q.scene("dialogue", function(stage){
-        let dialogue = stage.options.dialogue.text;
-        let idx = 0;
         let dialogueBox = stage.insert(new Q.UI.Container({x: Q.width / 2 - 350, y:Q.height - 210, w: 700, h: 200, cx:0, cy:0, fill: Q.OptionsController.options.menuColor, opacity:0.8, border:1}));
         let textArea = dialogueBox.insert(new Q.UI.Container({x:5, y:5, cx:0, cy:0, w:500, h:190, fill: Q.OptionsController.options.menuColor}));
         let optionsArea = dialogueBox.insert(new Q.MenuButtonContainer({x:510, y:5, cx:0, cy:0, w:185, h:190, fill: Q.OptionsController.options.menuColor}));
-        optionsArea.displayOptions = function(options){
-            let cursor = new Q.Cursor();
-            optionsArea.p.menuButtons = [];
-            for(let i = 0; i < options.length; i++){
-                let button = optionsArea.insert(new Q.MenuButton({x: 5, y: 5 + 40 * i, w:175, label: options[i].text, func: options[i].func, props:options[i].props, cursor: cursor}));
-                button.on("interactWith", function(){
-                    optionsArea.removeContent();
-                    //If there's no function, we're just cycling text.
-                    if(!this.p.func){
-                        processDialogue();
-                    } else {
-                        let newTextAvailable = Q.MenuController.menuButtonInteractFunction(this.p.func, this.p.props, stage.options);
-                        if(newTextAvailable){
-                            dialogue = newTextAvailable;
-                            idx = 0;
-                            processDialogue();
-                        }
-                    }
-                });
-                optionsArea.p.menuButtons.push([button]);
-            }
-            optionsArea.p.menuButtons[0][0].hover();
-        };
+        optionsArea.p.dialogue = stage.options.dialogue.text;
+        optionsArea.p.idx = 0;
         function processDialogue(){
+            let dialogue = optionsArea.p.dialogue;
+            let idx = optionsArea.p.idx;
             stage.off("step", Q.MenuController, "acceptInteract");
             stage.off("step", Q.MenuController, "acceptInputs");
             let item = dialogue[idx];
@@ -354,37 +360,23 @@ Quintus.Objects = function(Q) {
             
             if(!dialogue[idx + 1]){
                 Q.MenuController.currentCont = optionsArea;
-                Q.MenuController.currentCont.displayOptions(Q.MenuController.menus.prompts[stage.options.dialogue.prompt]);
+                Q.MenuController.currentCont.displayOptions(stage.options.dialogue.options);
             }
-            
-            /*
-            if(typeof item === "string"){
-                //stage.on("step", Q.MenuController, "acceptInteract");
-            } else if(item.options){
-                Q.MenuController.currentCont = optionsArea;
-                Q.MenuController.currentCont.displayOptions(item.options);
-                Q.MenuController.currentItem = [0, 0];
-                Q.MenuController.adjustMenuPosition(Q.MenuController.currentItem);
-                //stage.on("step", Q.MenuController, "acceptInputs");
-            } else if(item.func){
-                let newDialogue = Q.MenuController.dialogueInteractFunction(item, stage.options);
-                if(newDialogue){
-                    idx --;
-                    dialogue.splice(idx, 1);
-                    for(let i = newDialogue.length - 1; i >=0 ; i--){
-                        dialogue.splice(idx, 0, newDialogue[i]);
-                    }
-                }
-                if(dialogue[idx]){
-                    processDialogue();
-                } else {
-                    Q.MenuController.returnToGame();
-                }
-            }
-            if(dialogue[idx] && dialogue[idx].options) processDialogue();*/
         }
         processDialogue();
     });
+    
+    Q.scene("menu", function(stage){
+        let menu = stage.options.menu;
+        let menuBox = stage.insert(new Q.UI.Container({x: Q.width - 350, y:Q.height - 500, w: 195, h: menu.options.length * 35 + 45, cx:0, cy:0, fill: Q.OptionsController.options.menuColor, opacity:0.8, border:1}));
+        let optionsArea = menuBox.insert(new Q.MenuButtonContainer({x:5, y:5, cx:0, cy:0, w:menuBox.p.w - 10, h:menuBox.p.h - 10, fill: Q.OptionsController.options.menuColor}));
+        Q.MenuController.currentCont = optionsArea;
+        Q.MenuController.currentCont.displayOptions(menu.options);
+        
+        let selected = stage.options.selected || 0;
+        Q.MenuController.currentCont.p.menuButtons[0][selected].hover();
+    });
+    
     Q.GameObject.extend("optionsController",{
         toggleBoolOpt:function(opt){
             if(this.options[opt]) this.options[opt] = false;

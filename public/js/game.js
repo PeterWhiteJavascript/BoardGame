@@ -9,6 +9,13 @@ Quintus.Game = function(Q) {
             settings: stage.options.settings,
             users: stage.options.users
         });
+        Q.GameState.turnOrder = [];
+        for(let i = 0; i < stage.options.turnOrder.length; i++){
+            Q.GameState.turnOrder.push(Q.GameState.players.find((player) => {return player.playerId === stage.options.turnOrder[i];}));
+        }
+        console.log(Q.GameState.turnOrder);
+        
+        
         let mapData = gameData.map;
         //Insert all of the tile sprites.
         for(let i = 0; i < gameData.map.tiles.length; i++){
@@ -23,40 +30,39 @@ Quintus.Game = function(Q) {
         
         //Include this if we want to see the edge of the map.
         //stage.insert(new Q.MapBorder({w: mapData.data.map.w * Q.c.tileW, h: mapData.data.map.h * Q.c.tileH}));
+        Q.GameController.startTurn();
+        Q.processInputResult({func: "toPlayerTurnMainMenu", props: {selected: 0} });
+        if(Q.isActiveUser()){
+            console.log("It's your turn.")
+        }
         
         
         stage.on("step", function(){
-            //TODO: don't do this when it's not the current player's turn.
+            if(!Q.isActiveUser()) return;
             if(Q.inputs["confirm"]){
                 Q.socket.emit('inputted', {input: "confirm"});
-                stage.trigger("pressedConfirm");
                 stage.trigger("pressedInput", "confirm");
                 Q.inputs["confirm"] = false;
             }
             if(Q.inputs["back"]){
                 Q.socket.emit('inputted', {input: "back"});
-                stage.trigger("pressedBack");
                 stage.trigger("pressedInput", "back");
                 Q.inputs["back"] = false;
             }
             if(Q.inputs["left"]){
                 Q.socket.emit("inputted", {input: "left"});
-                stage.trigger("pressedLeft");
                 stage.trigger("pressedInput", "left");
                 Q.inputs["left"] = false;
             } else if(Q.inputs["right"]){
                 Q.socket.emit("inputted", {input: "right"});
-                stage.trigger("pressedRight");
                 stage.trigger("pressedInput", "right");
                 Q.inputs["right"] = false;
             } else if(Q.inputs["up"]){
                 Q.socket.emit("inputted", {input: "up"});
-                stage.trigger("pressedUp");
                 stage.trigger("pressedInput", "up");
                 Q.inputs["up"] = false;
             } else if(Q.inputs["down"]){
                 Q.socket.emit("inputted", {input: "down"});
-                stage.trigger("pressedDown");
                 stage.trigger("pressedInput", "down");
                 Q.inputs["down"] = false;
             }

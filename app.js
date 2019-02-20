@@ -71,7 +71,7 @@ function game(p){
         case "ffa":
         case "timed":
         case "2v2":
-            this.numOfPlayers = 1;//4
+            this.numOfPlayers = 2;//1;//4
             break;
         case "custom":
             this.numOfPlayers = this.settings.numOfPlayers;
@@ -93,7 +93,7 @@ io.on('connection', function (socket) {
     //This user information
     let user = {
         id: id,
-        ready: false //Ready to start the game
+        ready: false
     };
     //Create a game if there is none in this room
     if(!gameData[gameRoom]){
@@ -115,6 +115,7 @@ io.on('connection', function (socket) {
         gameData[gameRoom].users.push(user);
     }
     let Q = gameData[gameRoom].Q;
+    Q.random = gameData[gameRoom].random;
     
     socket.emit("connected", {loadFiles: loadFiles, id: id, gameRoom: gameRoom, users:gameData[gameRoom].users, initialSeed: gameData[gameRoom].initialSeed});
     
@@ -132,42 +133,31 @@ io.on('connection', function (socket) {
         //TODO: using current game state, figure out what this input is for.
         //For now, move the player around.
         let props = {};
+        console.log(Q.GameState.inputState.func)
         switch(Q.GameState.inputState.func){
-            //This holds all of the options for the player turn main menu (roll, stocks, shops, view board, view standings, options, view map)
-            case "playerTurnMainMenu":
-                //For now, just send to dice roll when pressing confim from this state.
-                if(data.input === "confirm"){
-                    //TODO: send current selection.
-                    io.in(gameRoom).emit("inputResult", {key: data.input, playerId: user.id, func: "rollDie", props: props});
-                    Q.GameState.inputState = {func: "confirmMovementDieRoll"};
-                }
-                break;
-            case "confirmMovementDieRoll":
+            case "rollDie":
                 //Roll the die
                 if(data.input === "confirm"){
-                    let num = ~~(gameData[gameRoom].random() * Q.GameState.players[0].dieMax + 1 - Q.GameState.players[0].dieMin) + Q.GameState.players[0].dieMin;
+                    let num = Q.GameState.currentMovementNum;
                     Q.GameController.allowPlayerMovement(num);
                     props.move = num;
-                    io.in(gameRoom).emit("inputResult", {key: data.input, playerId: user.id, func: "getDieRollToMovePlayer", props: props});
+                    socket.broadcast.to(gameRoom).emit("inputResult", {key: data.input, playerId: user.id, func: "stopDieAndAllowMovement", props: props});
                     Q.GameState.inputState = {func: "playerMovement"};
                 } 
                 //Go back to the main menu
                 else if(data.input === "back"){
                     props.num = 0;
-                    io.in(gameRoom).emit("inputResult", {key: data.input, playerId: user.id, func: "toPlayerTurnMainMenu", props: props});
-                    Q.GameState.inputState = {func: "playerTurnMainMenu"};
+                    socket.broadcast.to(gameRoom).emit("inputResult", {key: data.input, playerId: user.id, func: "removeDiceAndBackToPTM", props: props});
+                    Q.GameState.inputState = Q.MenuController.inputStates.playerTurnMenu;
+                    Q.MenuController.initializeMenu(Q.GameState.inputState);
                 }
                 
                 break;
             case "navigateMenu":
-                props.result = Q.MenuController.processInput(data.input);
-                if(props.result === true){
-                    Q.GameState.inputState["confirmTrue"]();
-                } else if(props.result === false){
-                    Q.GameState.inputState["confirmFalse"]();
+                props = Q.MenuController.processInput(data.input, socket);
+                if(props.func){
+                    socket.broadcast.to(gameRoom).emit("inputResult", {key: data.input, playerId: user.id, func: props.func, props: props});
                 }
-                io.in(gameRoom).emit("inputResult", {key: data.input, playerId: user.id, func: "navigateMenu", props: props});
-                
                 break;
             //When the player is moving after the has been rolled
             case "playerMovement":
@@ -177,24 +167,11 @@ io.on('connection', function (socket) {
                     props.locTo = obj.loc;
                     if(obj.finish){
                         props.finish = obj.finish;
-                        Q.GameState.inputState = {
-                            func: "navigateMenu", 
-                            confirmTrue: () => {
-                                Q.GameController.playerConfirmMove(user.id);
-                                Q.GameState.inputState = {func: "playerTurnMainMenu"};
-                                io.in(gameRoom).emit("inputResult", {key: data.input, playerId: user.id, func: "playerConfirmMove", props: props});
-                            }, 
-                            confirmFalse: () => {
-                                let loc = Q.GameController.playerGoBackMove(user.id);
-                                Q.GameState.inputState = {func: "playerMovement"};
-                                props.locTo = loc;
-                                io.in(gameRoom).emit("inputResult", {key: data.input, playerId: user.id, func: "playerGoBackMove", props: props});
-                            }
-                        };
+                        Q.GameState.inputState = Q.MenuController.inputStates.menuMovePlayer;
                         ////This is not added to any stage/scene since those don't exist on the server.
-                        Q.MenuController.initializeTextPrompt(Q.MenuController.menus.text.endRollHere);
+                        Q.MenuController.initializeMenu(Q.GameState.inputState);
                     }
-                    io.in(gameRoom).emit("inputResult", {key: data.input, playerId: user.id, func: "playerMovement", props: props});
+                    socket.broadcast.to(gameRoom).emit("inputResult", {key: data.input, playerId: user.id, func: "playerMovement", props: props});
                 }
                 break;
         }
@@ -207,21 +184,28 @@ io.on('connection', function (socket) {
             gameID ++;
             //Check if all users are ready
             let allReady = gameData[gameRoom].users.every((user) => user.ready);
-            //Tell all users in this room that this users is ready.
-            //When all users are ready, all users will load the map data locally.
-            io.in(gameRoom).emit("usersReady", {
-                allReady: allReady,
-                users: gameData[gameRoom].users,
-                map: gameData[gameRoom].map, 
-                settings: gameData[gameRoom].settings
-            });
             if(allReady){
                 Q.GameState = gameData[gameRoom].Q.GameController.setUpGameState({
                     settings: gameData[gameRoom].settings, 
                     mapData: gameData[gameRoom].mapData,
                     users: gameData[gameRoom].users
                 });
-            }
+                Q.GameState.turnOrder = Q.shuffleArray(Q.GameState.players);//Might need to shuffle this only on server...
+                //There will be different animations, like for turn order, maybe showing the map, etc...
+                //After the animations, show the playerTurnMenu on the first player and allow them to roll
+                //Create the playerTurnMenu TEMP (need to do turn order first eventually)
+                Q.MenuController.initializeMenu(Q.GameState.inputState);
+                Q.GameController.startTurn();
+                //Tell all users in this room that this user is ready.
+                //When all users are ready, all users will load the map data locally.
+                io.in(gameRoom).emit("usersReady", {
+                    allReady: allReady,
+                    users: gameData[gameRoom].users,
+                    map: gameData[gameRoom].map, 
+                    settings: gameData[gameRoom].settings,
+                    turnOrder: Q.GameState.turnOrder.map((player) => {return player.playerId;})
+                });
+            }   
         }
     });
     

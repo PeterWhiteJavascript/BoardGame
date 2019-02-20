@@ -10,8 +10,6 @@ Quintus.GameControl = function(Q) {
             let player = Q.GameController.getPlayer(id);
             let tileOn = Q.MapController.getTileAt(player.loc);
             
-            //TODO: check if the player is going backwards and add a move if they are (this is determined by checking the currentMovementPath)
-            
             let tileTo = tileOn.move.dir[input];
             if(tileTo){
                 if(Q.GameState.currentMovementPath.length > 1 && tileTo === Q.GameState.currentMovementPath[Q.GameState.currentMovementPath.length - 2]){
@@ -145,7 +143,7 @@ Quintus.GameControl = function(Q) {
                             } else {
                                 dirObj.right = tilesAroundAt[order[j]];
                             }
-                        }else if(order[j] === 12){
+                        } else if(order[j] === 12){
                             if(dirObj.down){
                                 dirObj.left = tilesAroundAt[order[j]];
                             } else {
@@ -192,18 +190,34 @@ Quintus.GameControl = function(Q) {
             for(let i = 0; i < num; i++){
                 this.dice.push(Q.stage(0).insert(new Q.Die({x: player.p.x, y: player.p.y - Q.c.tileH})));
             }
-            Q.stage(0).on("pressedConfirm", this.dice[0], "slow");
+            if(Q.isActiveUser()){
+                Q.stage(0).on("pressedInput", this.dice[0], "stopDie");
+            }
+        },
+        //Removes all dice
+        removeDice: function(){
+            this.dice.forEach((die) => {die.removeDie();});
         },
         //Stops the first die in the array. Usually there will be only one die, but sometimes there could be two due to an item or something.
         stopDie: function(num){
             this.dice[0].stop(num);
         },
+        localPlayerMovement: function(input){
+            let obj = Q.MapController.processPlayerMovement(input, Q.user.id);
+            if(obj.finish){
+                Q.stage(0).off("pressedInput", Q.GameController, "localPlayerMovement");
+                Q.GameController.askFinishMove(Q.GameController.getPlayer(Q.user.id));
+            }
+        },
         allowPlayerMovement: function(num){
-            if(Q.GameState.players[0].sprite){
-                Q.GameState.players[0].sprite.showMovementDirections();
+            if(Q.GameState.turnOrder[0].sprite){
+                Q.GameState.turnOrder[0].sprite.showMovementDirections();
+                if(Q.isActiveUser()){
+                    Q.stage(0).on("pressedInput", Q.GameController, "localPlayerMovement");
+                }
             }
             Q.GameState.currentMovementNum = num;
-            Q.GameState.currentMovementPath = [Q.MapController.getTileAt(Q.GameState.players[0].loc)];
+            Q.GameState.currentMovementPath = [Q.MapController.getTileAt(Q.GameState.turnOrder[0].loc)];
         },
         //After the player says "yes" to stopping here.
         playerConfirmMove: function(id){
@@ -216,8 +230,25 @@ Quintus.GameControl = function(Q) {
             Q.GameState.currentMovementPath.pop();
             let tileTo = Q.GameState.currentMovementPath[Q.GameState.currentMovementPath.length - 1];
             this.movePlayer(player, tileTo);
+            if(player.sprite){
+                player.sprite.p.allowMovement = true;
+            }
             return tileTo.loc;
         },  
+        //When the player steps onto the last tile of the movement
+        askFinishMove: function(player){
+            player.sprite.destroyArrows();
+            player.sprite.p.allowMovement = false;
+            
+            Q.GameState.inputState = Q.MenuController.inputStates.menuMovePlayer;
+            //Create the "do you want to stop here" menu.
+            Q.stageScene("dialogue", 1, {dialogue: Q.GameState.inputState});
+            Q.MenuController.initializeMenu(Q.GameState.inputState);
+            if(Q.isActiveUser()){
+                Q.stage(0).on("pressedInput", Q.MenuController, "processInput");
+                Q.stage(1).on("destroyed", function(){Q.stage(0).off("pressedInput", Q.MenuController, "processInput");});
+            }  
+        },
         movePlayer: function(player, tileTo){
             player.loc = tileTo.loc;
             if(player.sprite){
@@ -225,7 +256,7 @@ Quintus.GameControl = function(Q) {
             }
         },
         getPlayer: function(id){
-            return Q.GameState.players.find(player => { return player.playerId === id;});
+            return Q.GameState.turnOrder.find(player => { return player.playerId === id;});
         },
         setUpPlayers: function(data, mainTile){
             let players = [];
@@ -251,62 +282,110 @@ Quintus.GameControl = function(Q) {
         setUpGameState: function(data){
             let map = Q.MapController.generateMap(data.mapData, data.settings);
             let players = Q.GameController.setUpPlayers(data, map.mainTile);
-            let turnOrder = Q.shuffleArray(players);
-            return {map: map, players: players, turnOrder: turnOrder, inputState: {func: "playerTurnMainMenu"}};
+            return {map: map, players: players, inputState: Q.MenuController.inputStates.playerTurnMenu };
         },
+        //Functions that happen when the current player ends the turn
+        endTurn: function(){
+            Q.GameState.turnOrder.push(Q.GameState.turnOrder.shift());
+            Q.GameController.startTurn();
+        },
+        //Functions that happen when the new current player starts his turn
         startTurn: function(){
-            
-            
+            let player = Q.GameState.turnOrder[0];
+            player.turn = true;
+            Q.GameState.inputState =  Q.MenuController.inputStates.playerTurnMenu;
+            Q.MenuController.initializeMenu(Q.GameState.inputState);
         }
     });
     
     
     //This does not display anything or make sounds. It's run on the client and server.
     Q.GameObject.extend("menuController", {
-        menus: {
-            "text":{
-                "endRollHere":{
-                    "text": ["Would you like to end your roll here?"],
-                    "prompt": "confirmation"
+        inputStates: {
+            playerTurnMenu: {
+                func: "navigateMenu",
+                options:[
+                    ["Roll", "rollDie"],
+                    ["Shops", "showShopsMenu"],
+                    ["View Board", "viewBoard"],
+                    ["View Standings", "viewStandings"],
+                    ["Options", "showOptions"],
+                    ["View Map", "viewMap"]
+                ],
+                rollDie: (socket) => {
+                    let roll;
+                    if(Q.isServer()){
+                        roll = ~~(Q.random() * Q.GameState.turnOrder[0].dieMax + 1 - Q.GameState.turnOrder[0].dieMin) + Q.GameState.turnOrder[0].dieMin;
+                        //Send this roll to the active user
+                        socket.emit("receiveRoll", {roll: roll});
+                        Q.GameState.currentMovementNum = roll;
+                    } else {
+                       Q.processInputResult({func: "rollDie"});
+                    }
+                    Q.GameState.inputState = {func: "rollDie", roll: roll};
+                    return {func: "rollDie", roll: roll};
+                },
+                showShopsMenu: () => {
+                    
+                },
+                viewBoard: () => {
+                    
+                },
+                viewStandings: () => {
+                    
+                },
+                showOptions: () => {
+                    
+                },
+                viewMap: () => {
+                    
                 }
-
             },
-            "prompts":{
-                "confirmation": [
-                    {"text": "Yes", "func": "returnTrue"},
-                    {"text": "No", "func": "returnFalse"}
-                ]
-
-            }
-
-        },
-        executePromptFunction: function(func){
-            switch(func){
-                case "returnTrue":
-                    return true;
-                case "returnFalse":
-                    return false;
-                case "changeText":
-                    //TODO
-                    break;
-            }
-        },
-        //Takes some json data and uses it to create the proper menu items and functions that are triggered when an option is selected.
-        //This is used only for text. Status menus and other menus are in initializeMenu
-        initializeTextPrompt: function(data){
-            let prompt = this.menus.prompts[data.prompt];
-            this.currentItem = [0, 0];
-            this.itemGrid = [];
-            for(let i = 0 ;i < prompt.length; i++){
-                this.itemGrid.push([prompt[i]]);
+            menuMovePlayer: {
+                func: "navigateMenu",
+                text: ["Would you like to end your roll here?"],
+                options:[
+                    ["Yes", "confirmTrue"],
+                    ["No", "confirmFalse"]
+                ],
+                confirmTrue: () => {
+                    if(!Q.isServer() && Q.isActiveUser()){
+                        Q.stage(0).off("pressedInput", Q.MenuController, "processInput");
+                        Q.processInputResult({func: "playerConfirmMove"});
+                    } else {
+                        //TODO: this is where the on tile effect should be triggered.
+                        Q.GameController.playerConfirmMove(Q.GameState.turnOrder[0].playerId);
+                        //For now, just make the next player go.
+                        Q.GameController.endTurn();
+                        Q.GameState.inputState = Q.MenuController.inputStates.playerTurnMenu;
+                    }
+                    return {func: "playerConfirmMove"};
+                },
+                confirmFalse: () => {
+                    let loc = Q.GameController.playerGoBackMove(Q.GameState.turnOrder[0].playerId);
+                    Q.GameState.inputState = {func: "playerMovement"};
+                    if(!Q.isServer()){
+                        Q.clearStage(1);
+                        if(Q.isActiveUser()){
+                            Q.stage(0).off("pressedInput", Q.MenuController, "processInput");
+                            Q.stage(0).on("pressedInput", Q.GameController, "localPlayerMovement");
+                        }
+                    }
+                    Q.GameState.inputState = {func: "playerMovement", locTo: loc};
+                    return {func: "playerGoBackMove", locTo: loc};
+                }
             }
         },
         initializeMenu: function(data){
-            
+            this.currentItem = [0, 0];
+            this.itemGrid = [];
+            for(let i = 0 ; i < data.options.length; i++){
+                this.itemGrid.push([data.options[i]]);
+            }
         },
-        confirmMenuOption: function(){
+        confirmMenuOption: function(socket){
             let option = this.itemGrid[this.currentItem[1]][this.currentItem[0]];
-            return this.executePromptFunction(option.func);
+            return Q.GameState.inputState[option[1]](socket);
         },
         keepInRange: function(coord){
             let currentItem = this.currentItem;
@@ -342,135 +421,19 @@ Quintus.GameControl = function(Q) {
             if(this.currentCont){
                 this.currentCont.p.menuButtons[this.currentItem[1]][this.currentItem[0]].hover();
             }
-            return this.currentItem;
+            console.log(this.currentItem)
+            return {item: this.currentItem, func: "navigateMenu"};
         },
-        processInput: function(input){
+        processInput: function(input, socket){
             if(input === "confirm"){
-               return this.confirmMenuOption();
+               return this.confirmMenuOption(socket);
             } else if(input === "up"){
-               return this.adjustMenuPosition([0, -1]);
+               return {func: "navigateMenu", pos:this.adjustMenuPosition([0, -1])};
             } else if(input === "down"){
-               return this.adjustMenuPosition([0, 1]);
+               return {func: "navigateMenu", pos:this.adjustMenuPosition([0, 1])};
             }
         }
     });
-    
-    //Keeps track of the position of the cursor in menus.
-    
-    
-    /*
-    
-    Q.GameObject.extend("menuController",{
-        currentItem: false, 
-        currentCont: false,
-        returnToGame: function(){
-            Q.player.p.canInput = true;
-            Q.clearStage(2);
-            Q.stage(0).unpause();
-        },
-        changeContainer: function(cont, noSound){
-            let currentItem = this.currentItem;
-            let currentCont = this.currentCont;
-            currentCont.p.prevIdx = currentCont.p.saveIdx ? [currentItem[0], currentItem[1]] : [0, 0];
-            currentItem = false;
-            if(!noSound) Q.AudioController.playSound("change-menu.mp3");
-            if(!currentCont.p.noDehover){
-                currentCont.dehoverAll();
-            } else {
-                for(let i = 0; i < cont.p.menuButtons.length; i++){
-                    for(let j = 0; j < cont.p.menuButtons[i].length; j++){
-                        if(cont.p.menuButtons[i][j].p.fill === cont.p.menuButtons[i][j].p.selectedColour) currentItem = [j, i];
-                    }
-                }
-            }
-            this.currentCont = cont;
-            if(!currentItem){
-                this.currentItem = cont.p.prevIdx || [0, 0];
-                this.adjustMenuPosition([0, 0]);
-            }
-        },
-        keepInRange: function(coord){
-            let currentItem = this.currentItem;
-            currentItem[0] += coord[0];
-            currentItem[1] += coord[1];
-            let currentCont = this.currentCont;
-            let buttons = currentCont.p.menuButtons;
-            let maxX, maxY;
-            
-            function getMaxY(){
-                let num = 0;
-                for(let i = 0; i < buttons.length; i++){
-                    if(buttons[i] && buttons[i][currentItem[0]]) num++;
-                }
-                return num - 1;
-            }
-            if(coord[0]) maxX = buttons[currentItem[1]].length - 1;
-            if(coord[1]) maxY = getMaxY();
-            if(currentItem[0] > maxX) return [0, currentItem[1]];
-            if(currentItem[1] > maxY) return [currentItem[0], 0];
-            if(currentItem[0] < 0) return [maxX, currentItem[1]];
-            if(currentItem[1] < 0) return [currentItem[0], maxY];
-            return currentItem;
-        },
-        adjustMenuPosition: function(coord){
-            let currentItem = this.currentItem;
-            let currentCont = this.currentCont;
-            let buttons = currentCont.p.menuButtons;
-            do {
-                currentItem = this.keepInRange(coord);
-            }
-            while(!buttons[currentItem[1]][currentItem[0]]);
-            buttons[currentItem[1]][currentItem[0]].hover();
-            this.currentItem = currentItem;
-        },
-        acceptInputs: function(){
-            if(Q.inputs["down"]){
-                this.adjustMenuPosition([0, 1]);
-                Q.AudioController.playSound("move-cursor.mp3");
-                Q.inputs["down"] = false;
-            } else if(Q.inputs["up"]){
-                this.adjustMenuPosition([0, -1]);
-                Q.AudioController.playSound("move-cursor.mp3");
-                Q.inputs["up"] = false;
-            }
-            if(Q.inputs["left"]){
-                this.adjustMenuPosition([-1, 0]);
-                Q.AudioController.playSound("move-cursor.mp3");
-                Q.inputs["left"] = false;
-            } else if(Q.inputs["right"]){
-                this.adjustMenuPosition([1, 0]);
-                Q.AudioController.playSound("move-cursor.mp3");
-                Q.inputs["right"] = false;
-            }
-            if(Q.inputs["interact"]){
-                this.currentCont.interact(this.currentCont.p.menuButtons[this.currentItem[1]][this.currentItem[0]]);
-                Q.inputs["interact"] = false;
-            }
-            if(Q.inputs["menu"]){
-                this.currentCont.trigger("goBack", this.currentCont.p.prevCont);
-                Q.inputs["menu"] = false;
-            }
-        },
-        acceptInteract: function(){
-            if(Q.inputs["interact"]){
-                Q.inputs["interact"] = false;
-                this.currentCont.trigger("interact");
-            }
-        },
-        //All functions that can happen when answering a question in a menu
-        menuButtonInteractFunction:function(func, props, interactWith){
-            let object, newDialogue;
-            if(typeof func === "string"){
-                switch(func){
-                    case "exitMenu":
-                        this.returnToGame();
-                        break;
-                }
-            } else {
-                func();
-            }
-        }
-    });*/
     
     Q.MapController = new Q.mapController();
     Q.GameController = new Q.gameController();
