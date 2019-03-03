@@ -11,22 +11,38 @@ Quintus.Objects = function(Q) {
                 cy:0
                 //Todo: border of tile, actually make sprite/frame work
             });
+            this.tileData = p;
             Q.setXY(this);
             this.on("inserted");
+            this.p.backgroundColor = Q.stage(0).insert(new Q.UI.Container({x: this.p.x, y: this.p.y, h: this.p.h, w: this.p.w, fill: "lightgrey", cx: 0, cy:0}));
         },
         inserted: function(){
             switch(this.p.type){
                 case "shop":
-                    this.p.borderColor = this.stage.insert(new Q.UI.Container({w: this.p.w - 6, h: this.p.h - 6, x: 3, y: 3, cx:0, cy:0, border: 5, stroke: Q.GameState.map.data.districts[this.p.district].color, fill: "transparent"}), this);
-                    this.p.propertyIcon = this.stage.insert(new Q.Sprite({x:Q.c.tileW / 2, y: 0, cx:0, cy:0, sheet: "tile-structure-" + this.p.rank, frame: 0}), this);
-                    this.p.valueText = this.stage.insert(new Q.UI.Text({x:Q.c.tileW, y: Q.c.tileH * 1.35, label:"" + this.p.value, size: 18}), this);
+                    this.p.borderColor = this.stage.insert(new Q.UI.Container({w: this.p.w - 6, h: this.p.h - 6, x: 3, y: 3, cx:0, cy:0, border: 5, stroke: Q.GameState.map.data.districts[this.tileData.district].color, fill: "transparent"}), this);
+                    this.p.propertyIcon = this.stage.insert(new Q.Sprite({x:Q.c.tileW / 2, y: 0, cx:0, cy:0, sheet: "shop-for-sale-signpost", frame: 0}), this);
+                    this.p.valueText = this.stage.insert(new Q.UI.Text({x:Q.c.tileW, y: 10, label:"" + this.tileData.value, size: 18}), this);
                     break;
                 case "main":
                     //TEMP
-                    this.p.homeText = this.stage.insert(new Q.UI.Text({x:Q.c.tileW, y: Q.c.tileH * 1.35, label:"HOME TILE", size: 18}), this);
+                    this.p.homeText = this.stage.insert(new Q.UI.Text({x:Q.c.tileW, y: Q.c.tileH * 1.35, label:"HOME", size: 18}), this);
                     break;
             }
-            
+        },
+        sellTile: function(){
+            this.p.valueText.p.y = 10;
+            this.p.valueText.p.label = "" + this.tileData.value;
+            //Todo: animate this and then set it
+            this.p.propertyIcon.p.sheet = "shop-for-sale-signpost";
+            this.p.backgroundColor.p.fill = "lightgrey";
+        },
+        //Set the color of the background, as well as the position of the cost text
+        updateTile: function(color){
+            this.p.valueText.p.y = Q.c.tileH * 1.35;
+            this.p.valueText.p.label = "" + this.tileData.cost;
+            //Todo: animate this and then set it
+            this.p.propertyIcon.p.sheet = "tile-structure-" + this.tileData.rank;
+            this.p.backgroundColor.p.fill = color;
         }
     });
     Q.Sprite.extend("Player", {
@@ -294,7 +310,7 @@ Quintus.Objects = function(Q) {
         },
         addText:function(){
             let size = this.p.size || 14;
-            this.insert(new Q.UI.Text({label: this.p.label, x: this.p.w / 2, y: this.p.h / 2 - size + 2, size: size || 14}));
+            this.insert(new Q.UI.Text({label: this.p.label, x: 10, y: this.p.h / 2 - size / 2, size: size || 14, align: "left"}));
         }
     });
     Q.UI.Text.extend("ScrollingText",{
@@ -302,7 +318,9 @@ Quintus.Objects = function(Q) {
             this._super(p, {
                 x:10, y: 5,
                 align: "left",
-                cx:0, cy:0
+                cx:0, cy:0,
+                color: Q.OptionsController.options.textColor,
+                family: "Comic Sans MS"
             });
             this.on("inserted");
         },
@@ -312,6 +330,52 @@ Quintus.Objects = function(Q) {
         },
         doneScrolling: function(){
             this.trigger("doneScrolling");
+        }
+    });
+    Q.UI.Container.extend("StandardMenu", {
+        init: function(p){
+            this._super(p, {
+                cx:0, 
+                cy:0, 
+                fill: Q.OptionsController.options.menuColor, 
+                opacity:0.8, 
+                border:1
+            });
+        }
+    });
+    Q.UI.Text.extend("StandardText", {
+        init: function(p){
+            this._super(p, {
+                size: 20,
+                color: Q.OptionsController.options.textColor,
+                align: "right",
+                family: "Verdana"
+            });
+        }
+    });
+    Q.UI.Text.extend("SmallText", {
+        init: function(p){
+            this._super(p, {
+                size: 16,
+                align: "center",
+                color: Q.OptionsController.options.textColor
+            });
+        }
+    });
+    Q.UI.Container.extend("BGText", {
+        init: function(p){
+            this._super(p, {
+                cx:0, cy:0,
+                fill: "#222"
+            });
+            if(p.textP){
+                this.on("inserted", this, "addText");
+            }
+        },
+        addText:function(){
+            let p = this.p.textP;
+            this.text = this.insert(new Q[p.textClass](p));
+            
         }
     });
     Q.GameObject.extend("textProcessor",{
@@ -358,9 +422,9 @@ Quintus.Objects = function(Q) {
         }
     });
     Q.scene("dialogue", function(stage){
-        let dialogueBox = stage.insert(new Q.UI.Container({x: Q.width / 2 - 350, y:Q.height - 210, w: 700, h: 200, cx:0, cy:0, fill: Q.OptionsController.options.menuColor, opacity:0.8, border:1}));
-        let textArea = dialogueBox.insert(new Q.UI.Container({x:5, y:5, cx:0, cy:0, w:500, h:190, fill: Q.OptionsController.options.menuColor}));
-        let optionsArea = dialogueBox.insert(new Q.MenuButtonContainer({x:510, y:5, cx:0, cy:0, w:185, h:190, fill: Q.OptionsController.options.menuColor}));
+        let dialogueBox = stage.insert(new Q.StandardMenu({x: Q.width / 2 - 350, y:Q.height - 210, w: 700, h: 200}));
+        let textArea = dialogueBox.insert(new Q.UI.Container({x:10, y:10, cx:0, cy:0, w:490, h:180}));
+        let optionsArea = dialogueBox.insert(new Q.MenuButtonContainer({x:510, y:5, cx:0, cy:0, w:185, h:190}));
         optionsArea.p.dialogue = stage.options.dialogue.text;
         optionsArea.p.idx = 0;
         function processDialogue(){
@@ -388,7 +452,7 @@ Quintus.Objects = function(Q) {
     
     Q.scene("menu", function(stage){
         let menu = stage.options.menu;
-        let menuBox = stage.insert(new Q.UI.Container({x: Q.width - 350, y:Q.height - 500, w: 195, h: menu.options.length * 35 + 45, cx:0, cy:0, fill: Q.OptionsController.options.menuColor, opacity:0.8, border:1}));
+        let menuBox = stage.insert(new Q.UI.Container({x: 50, y:50, w: 195, h: menu.options.length * 40 + 15 , cx:0, cy:0, fill: Q.OptionsController.options.menuColor, opacity:0.8, border:1}));
         let optionsArea = menuBox.insert(new Q.MenuButtonContainer({x:5, y:5, cx:0, cy:0, w:menuBox.p.w - 10, h:menuBox.p.h - 10, fill: Q.OptionsController.options.menuColor}));
         Q.MenuController.currentCont = optionsArea;
         Q.MenuController.currentCont.displayOptions(menu.options);

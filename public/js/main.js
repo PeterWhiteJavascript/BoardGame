@@ -37,7 +37,12 @@ Q.socket.on('connected', function (connectionData) {
         Q.AudioController = new Q.audioController();
         Q.OptionsController = new Q.optionsController();
         Q.OptionsController.options = {
-            menuColor: "white"
+            menuColor: "#111",
+            textColor: "#EEE",
+            musicEnabled: false,
+            musicVolume: 0.1,
+            soundEnabled: false,
+            soundVolume: 0.1
         };//GDATA.saveFiles["save-file1.json"].options;
         Q.TextProcessor = new Q.textProcessor();
         
@@ -52,7 +57,8 @@ Q.socket.on('connected', function (connectionData) {
         //Anything that is shown client side will be correct, unless the user is trying to cheat.
         //Override any changes with these values just in case.
         Q.processInputResult = function(data){
-            let player;
+            let player, shop;
+            console.log(data)
             switch(data.func){
                 case "rollDie":
                     Q.clearStage(1);
@@ -74,6 +80,9 @@ Q.socket.on('connected', function (connectionData) {
                     
                     player = Q.GameController.getPlayer(data.playerId);
                     Q.GameController.movePlayer(player, {loc: data.props.locTo});
+                    //Show the tile props in a menu
+                    Q.stage(2).hoverShop(Q.MapController.getTileAt(data.props.locTo));
+                    
                     if(data.props.finish){
                         Q.GameController.askFinishMove(player);
                     }
@@ -85,10 +94,7 @@ Q.socket.on('connected', function (connectionData) {
                     //Q.GameState.inputState = Q.MenuController.inputStates.playerTurnMenu;
                     Q.stageScene("menu", 1, {menu: Q.GameState.inputState, selected: menuOptionSelected});
                     Q.MenuController.initializeMenu(Q.GameState.inputState);
-                    if(Q.isActiveUser()){
-                        Q.stage(0).on("pressedInput", Q.MenuController, "processInput");
-                        Q.stage(1).on("destroyed", function(){Q.stage(0).off("pressedInput", Q.MenuController, "processInput");});
-                    }
+                    Q.MenuController.turnOnDialogueInputs();
                     break;
                 //TODO: move the cursor up/down/whatever in the menu
                 case "navigateMenu":
@@ -103,21 +109,30 @@ Q.socket.on('connected', function (connectionData) {
                         
                     }
                     break;
-                //If the player sey yes to ending their move here.
+                //If the player says yes to ending their move here.
                 case "playerConfirmMove":
-                    // TODO: on tile effects.
                     Q.clearStage(1);
-                    
-                    //For now, just end the turn.
+                    Q.GameController.playerConfirmMove(Q.GameState.turnOrder[0].playerId);
+                    break;
+                case "buyShop":
+                    Q.GameController.buyShop(Q.GameController.getPlayer(data.playerId), Q.MapController.getTileAt(data.props.shopLoc));
                     Q.GameController.endTurn();
-                    Q.processInputResult({func: "toPlayerTurnMainMenu", props: {selected: 0} });
-                    
+                    break;
+                case "buyOutShop":
+                    Q.GameController.buyOutShop(Q.GameController.getPlayer(data.playerId), Q.MapController.getTileAt(data.props.shopLoc));
+                    Q.GameController.endTurn();
+                    break;
+                case "endTurn":
+                    Q.GameController.endTurn();
                     break;
                 //If the player says they don't want to end their move here.
                 case "playerGoBackMove":
                     player = Q.GameController.getPlayer(data.playerId);
                     player.sprite.p.allowMovement = true;
                     Q.GameController.movePlayer(player, {loc: data.props.locTo});
+                    //Show the tile props in a menu
+                    Q.stage(2).hoverShop(Q.MapController.getTileAt(data.props.locTo));
+                    
                     Q.clearStage(1);
                     break;
             }

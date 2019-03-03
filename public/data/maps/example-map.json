@@ -4,7 +4,6 @@
             "x": 0,
             "y": 2,
             "value": 260,
-            "cost": 120,
             "rank": 1,
             "name": "Bakery",
             "type": "shop",
@@ -17,10 +16,9 @@
         {
             "x": 2,
             "y": 2,
-            "value": 260,
-            "cost": 120,
-            "rank": 1,
-            "name": "Bakery",
+            "value": 220,
+            "rank": 2,
+            "name": "Butcher",
             "type": "shop",
             "district": 0,
             "move": {
@@ -31,8 +29,7 @@
         {
             "x": 4,
             "y": 2,
-            "value": 220,
-            "cost": 80,
+            "value": 120,
             "rank": 1,
             "name": "Lemonade Stall",
             "type": "shop",
@@ -45,10 +42,9 @@
         {
             "x": 6,
             "y": 2,
-            "value": 220,
-            "cost": 80,
-            "rank": 1,
-            "name": "Lemonade Stall",
+            "value": 300,
+            "rank": 2,
+            "name": "Clothing Store",
             "type": "shop",
             "district": 0,
             "move": {
@@ -59,10 +55,9 @@
         {
             "x": 6,
             "y": 4,
-            "value": 220,
-            "cost": 80,
-            "rank": 1,
-            "name": "Lemonade Stall",
+            "value": 400,
+            "rank": 3,
+            "name": "Furniture Shop",
             "type": "shop",
             "district": 0,
             "move": {
@@ -82,10 +77,9 @@
         {
             "x": 6,
             "y": 8,
-            "value": 220,
-            "cost": 80,
+            "value": 600,
             "rank": 1,
-            "name": "Lemonade Stall",
+            "name": "Paint Shop",
             "type": "shop",
             "district": 1,
             "move": {
@@ -96,10 +90,9 @@
         {
             "x": 4,
             "y": 8,
-            "value": 220,
-            "cost": 80,
+            "value": 100,
             "rank": 1,
-            "name": "Lemonade Stall",
+            "name": "Candy Store",
             "type": "shop",
             "district": 1,
             "move": {
@@ -110,10 +103,9 @@
         {
             "x": 2,
             "y": 8,
-            "value": 220,
-            "cost": 80,
+            "value": 350,
             "rank": 1,
-            "name": "Lemonade Stall",
+            "name": "Ice Cream Shop",
             "type": "shop",
             "district": 2,
             "move": {
@@ -124,10 +116,9 @@
         {
             "x": 0,
             "y": 8,
-            "value": 220,
-            "cost": 80,
-            "rank": 1,
-            "name": "Lemonade Stall",
+            "value": 500,
+            "rank": 3,
+            "name": "Jewelry Store",
             "type": "shop",
             "district": 2,
             "move": {
@@ -138,10 +129,9 @@
         {
             "x": 0,
             "y": 6,
-            "value": 220,
-            "cost": 80,
+            "value": 400,
             "rank": 1,
-            "name": "Lemonade Stall",
+            "name": "Chinese Restaurant",
             "type": "shop",
             "district": 2,
             "move": {
@@ -152,10 +142,9 @@
         {
             "x": 0,
             "y": 4,
-            "value": 220,
-            "cost": 80,
+            "value": 800,
             "rank": 1,
-            "name": "Lemonade Stall",
+            "name": "Bistro",
             "type": "shop",
             "district": 2,
             "move": {
@@ -183,7 +172,8 @@
     ],
     "map": {
         "w": 20,
-        "h": 20
+        "h": 20,
+        "bgm": "town-01"
     },
     "modes": {
         "ffa": {

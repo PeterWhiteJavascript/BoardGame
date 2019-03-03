@@ -22,6 +22,9 @@ Quintus.GameControl = function(Q) {
                     }
                 }
                 Q.GameController.movePlayer(player, tileTo);
+                if(!Q.isServer()){
+                    Q.stage(2).hoverShop(tileTo);
+                }
             } else {
                 return false;
             }
@@ -38,12 +41,24 @@ Quintus.GameControl = function(Q) {
                 }
             } 
         },
+        generateShopValue: function(value, rank){
+            return value * rank;
+        },
+        generateShopCost: function(value, rank, investedCapital, numberOfShopsInDistrict){
+            // 20 - 25 - 30 - 35 - 40
+            return ~~(value * (0.2 + (rank - 1) * 0.05 + numberOfShopsInDistrict * 0.05)) + investedCapital;
+        },
+        generateShopMaxCapital: function(value, rank, investedCapital, numberOfShopsInDistrict){
+            return ~~(value + (value / 2 * rank * numberOfShopsInDistrict)) - investedCapital;
+        },
         //Pass the map data and return the fully generated map inside a tile w*h tile grid.
         generateMap: function(mapData, settings){
             let map = {
                 data: mapData,
-                tiles: []
+                tiles: [],
+                districts: []
             };
+            mapData.districts.forEach(() => {map.districts.push([]);});
             let grid = Q.createArray(false, mapData.map.w, mapData.map.h);
             //Add tiles to grid and generate their sprite.
             for(let i = 0; i < mapData.tiles.length; i++){
@@ -58,11 +73,16 @@ Quintus.GameControl = function(Q) {
                 //Do different things based on the tile type.
                 switch(tile.type){
                     case "shop":
-                        tile.value = tileData.value;
-                        tile.cost = tileData.cost;
+                        tile.initialValue = tileData.value;
                         tile.rank = tileData.rank;
+                        tile.investedCapital = 0;
+                        tile.value = Q.MapController.generateShopValue(tile.initialValue, tile.rank);
+                        tile.cost = Q.MapController.generateShopCost(tile.initialValue, tile.rank, tile.investedCapital, 1);
+                        tile.maxCapital = Q.MapController.generateShopMaxCapital(tile.initialValue, tile.rank, tile.investedCapital, 1);
+                        tile.capitalInvested = 0;
                         tile.name = tileData.name;
                         tile.district = tileData.district;
+                        map.districts[tile.district].push(tile);
                         break;
                     case "main":
                         map.mainTile = tile;
@@ -185,6 +205,18 @@ Quintus.GameControl = function(Q) {
     //Functions that are run during gameplay.
     //Add/remove shop from player, stocks, etc...
     Q.GameObject.extend("gameController", {
+        changePlayerMoney: function(player, amount){
+            player.money += amount;
+            if(!Q.isServer()){
+                player.sprite.trigger("moneyChanged");
+            }
+        },
+        changePlayerNetValue: function(player, amount){
+            player.netValue += amount;
+            if(!Q.isServer()){
+                player.sprite.trigger("netValueChanged");
+            }
+        },
         startRollingDie: function(num, player){
             this.dice = [];
             for(let i = 0; i < num; i++){
@@ -221,17 +253,64 @@ Quintus.GameControl = function(Q) {
         },
         //After the player says "yes" to stopping here.
         playerConfirmMove: function(id){
-            //For now, just make the player able to roll again.
-            
-            
+            let player = this.getPlayer(id);
+            let tileOn = Q.MapController.getTileAt(player.loc);
+            switch(tileOn.type){
+                case "shop":
+                    //Pay the owner and then give the option to buy out
+                    if(tileOn.ownedBy){
+                        //If the tile is owned by the player (do nothing???)
+                        if(tileOn.ownedBy === player){
+                            Q.GameController.endTurn();
+                        } 
+                        //Pay the owner
+                        else {
+                            Q.GameController.changePlayerMoney(player, -tileOn.cost);
+                            Q.GameController.changePlayerNetValue(player, -tileOn.cost);
+                            Q.GameController.changePlayerMoney(tileOn.ownedBy, tileOn.cost);
+                            Q.GameController.changePlayerNetValue(tileOn.ownedBy, tileOn.cost);
+                            //Ask for buyout
+                            if(player.money >= tileOn.value * 5){
+                                Q.GameState.inputState = Q.MenuController.inputStates.askBuyOutShop;
+                                Q.MenuController.initializeMenu(Q.GameState.inputState);
+                                if(!Q.isServer()){
+                                    Q.stageScene("dialogue", 1, {dialogue: Q.GameState.inputState});
+                                    Q.MenuController.turnOnDialogueInputs();
+                                }
+                            } else {
+                                Q.GameController.endTurn();
+                            }
+                        }
+                    } 
+                    //Ask if the player would like to buy it.
+                    else {
+                        //If the player doesn't have enough money, skip this step and end the turn
+                        if(player.money < tileOn.value){
+                            Q.GameController.endTurn();
+                        } else {
+                            Q.GameState.inputState = Q.MenuController.inputStates.askBuyShop;
+                            Q.MenuController.initializeMenu(Q.GameState.inputState);
+                            if(!Q.isServer()){
+                                Q.stageScene("dialogue", 1, {dialogue: Q.GameState.inputState});
+                                Q.MenuController.turnOnDialogueInputs();
+                            }
+                        }
+                    }
+                    break;
+                case "main":
+                    Q.GameController.endTurn();
+                    break;
+            }
         },
         playerGoBackMove: function(id){
             let player = this.getPlayer(id);
             Q.GameState.currentMovementPath.pop();
             let tileTo = Q.GameState.currentMovementPath[Q.GameState.currentMovementPath.length - 1];
             this.movePlayer(player, tileTo);
-            if(player.sprite){
+            if(!Q.isServer()){
                 player.sprite.p.allowMovement = true;
+                //Show the tile props in a menu
+                Q.stage(2).hoverShop(Q.MapController.getTileAt(tileTo.loc));
             }
             return tileTo.loc;
         },  
@@ -244,10 +323,7 @@ Quintus.GameControl = function(Q) {
             //Create the "do you want to stop here" menu.
             Q.stageScene("dialogue", 1, {dialogue: Q.GameState.inputState});
             Q.MenuController.initializeMenu(Q.GameState.inputState);
-            if(Q.isActiveUser()){
-                Q.stage(0).on("pressedInput", Q.MenuController, "processInput");
-                Q.stage(1).on("destroyed", function(){Q.stage(0).off("pressedInput", Q.MenuController, "processInput");});
-            }  
+            Q.MenuController.turnOnDialogueInputs();
         },
         movePlayer: function(player, tileTo){
             player.loc = tileTo.loc;
@@ -265,6 +341,8 @@ Quintus.GameControl = function(Q) {
                     playerId: data.users[i].id,
                     loc: mainTile.loc,
                     money: data.mapData.modes[data.settings.mode].startMoney,
+                    netValue: data.mapData.modes[data.settings.mode].startMoney,
+                    color: data.users[i].color,
                     shops: [],
                     items: [],
                     stocks: [],
@@ -295,8 +373,46 @@ Quintus.GameControl = function(Q) {
             player.turn = true;
             Q.GameState.inputState =  Q.MenuController.inputStates.playerTurnMenu;
             Q.MenuController.initializeMenu(Q.GameState.inputState);
-            if(!Q.isServer() && Q.isActiveUser()){
-                Q.stage(0).insert(new Q.TurnAnimation());
+            if(!Q.isServer()){
+                Q.stageScene("menu", 1, {menu: Q.GameState.inputState, selected: 0});
+                if(Q.isActiveUser()){
+                    Q.stage(0).insert(new Q.TurnAnimation());
+                    Q.MenuController.turnOnDialogueInputs();
+                }   
+            }
+        },
+        buyShop: function(player, shop){
+            Q.GameController.changePlayerMoney(player, -shop.value);
+            if(!Q.isServer()){
+                shop.sprite.updateTile(player.color);
+            }
+            shop.ownedBy = player;
+            Q.GameController.adjustShopValues(player, shop);
+        },
+        buyOutShop: function(player, shop){
+            Q.GameController.changePlayerMoney(shop.ownedBy, shop.value * 3);
+            Q.GameController.changePlayerNetValue(shop.ownedBy, shop.value * 3);
+            Q.GameController.changePlayerMoney(player, -shop.value * 5);
+            Q.GameController.changePlayerNetValue(player, -shop.value * 4);
+            if(!Q.isServer()){
+                shop.sprite.updateTile(player.color);
+            }
+            shop.ownedBy = player;
+            Q.GameController.adjustShopValues(player, shop);
+            Q.GameController.adjustShopValues(shop.ownedBy, shop);
+        },
+        //Changes the value of shops in the district based on the number that the player owns.
+        adjustShopValues: function(player, shop){
+            let district = Q.GameState.map.districts[shop.district];
+            let shopsOwned = district.filter((shop) => {return shop.ownedBy === player;});
+            if(shopsOwned.length > 1){
+                shopsOwned.forEach((shop) => {
+                    shop.cost = Q.MapController.generateShopCost(shop.value, shop.rank, shop.investedCapital, shopsOwned.length);
+                    shop.maxCapital = Q.MapController.generateShopMaxCapital(shop.value, shop.rank, shop.investedCapital, shopsOwned.length);
+                    if(!Q.isServer()){
+                        shop.sprite.updateTile(player.color);
+                    }
+                });
             }
         }
     });
@@ -304,6 +420,20 @@ Quintus.GameControl = function(Q) {
     
     //This does not display anything or make sounds. It's run on the client and server.
     Q.GameObject.extend("menuController", {
+        turnOffDialogueInputs: function(){
+            if(!Q.isServer()){
+                Q.clearStage(1);
+                if(Q.isActiveUser()){
+                    Q.stage(0).off("pressedInput", Q.MenuController, "processInput");
+                }
+            }
+        },
+        turnOnDialogueInputs: function(){
+            if(Q.isActiveUser()){
+                Q.stage(0).on("pressedInput", Q.MenuController, "processInput");
+                Q.stage(1).on("destroyed", function(){Q.stage(0).off("pressedInput", Q.MenuController, "processInput");});
+            }
+        },
         inputStates: {
             playerTurnMenu: {
                 func: "navigateMenu",
@@ -312,8 +442,7 @@ Quintus.GameControl = function(Q) {
                     ["Shops", "showShopsMenu"],
                     ["View Board", "viewBoard"],
                     ["View Standings", "viewStandings"],
-                    ["Options", "showOptions"],
-                    ["View Map", "viewMap"]
+                    ["Options", "showOptions"]
                 ],
                 rollDie: (socket) => {
                     let roll;
@@ -339,9 +468,6 @@ Quintus.GameControl = function(Q) {
                 },
                 showOptions: () => {
                     
-                },
-                viewMap: () => {
-                    
                 }
             },
             menuMovePlayer: {
@@ -356,26 +482,65 @@ Quintus.GameControl = function(Q) {
                         Q.stage(0).off("pressedInput", Q.MenuController, "processInput");
                         Q.processInputResult({func: "playerConfirmMove"});
                     } else {
-                        //TODO: this is where the on tile effect should be triggered.
                         Q.GameController.playerConfirmMove(Q.GameState.turnOrder[0].playerId);
-                        //For now, just make the next player go.
-                        Q.GameController.endTurn();
-                        Q.GameState.inputState = Q.MenuController.inputStates.playerTurnMenu;
                     }
                     return {func: "playerConfirmMove"};
                 },
                 confirmFalse: () => {
                     let loc = Q.GameController.playerGoBackMove(Q.GameState.turnOrder[0].playerId);
                     Q.GameState.inputState = {func: "playerMovement"};
+                    Q.MenuController.turnOffDialogueInputs();
                     if(!Q.isServer()){
-                        Q.clearStage(1);
-                        if(Q.isActiveUser()){
-                            Q.stage(0).off("pressedInput", Q.MenuController, "processInput");
-                            Q.stage(0).on("pressedInput", Q.GameController, "localPlayerMovement");
-                        }
+                        Q.stage(0).on("pressedInput", Q.GameController, "localPlayerMovement");
                     }
+                    
                     Q.GameState.inputState = {func: "playerMovement", locTo: loc};
                     return {func: "playerGoBackMove", locTo: loc};
+                }
+            },
+            askBuyShop: {
+                func: "navigateMenu",
+                text: ["Would you like to buy this shop?"],
+                options:[
+                    ["Yes", "confirmTrue"],
+                    ["No", "confirmFalse"]
+                ],
+                confirmTrue: () => {
+                    let player = Q.GameState.turnOrder[0];
+                    let tileOn = Q.MapController.getTileAt(player.loc);
+                    Q.GameController.buyShop(player, tileOn);
+                    if(!Q.isServer()){
+                        Q.MenuController.turnOffDialogueInputs();
+                    }
+                    Q.GameController.endTurn();
+                    return {func: "buyShop", shopLoc: player.loc};
+                },
+                confirmFalse: () => {
+                    Q.GameController.endTurn();
+                    return {func: "endTurn"};
+                }
+            },
+            askBuyOutShop: {
+                func: "navigateMenu",
+                text: ["Would you like to buy out this shop?"],
+                options:[
+                    ["Yes", "confirmTrue"],
+                    ["No", "confirmFalse"]
+                ],
+                confirmTrue: () => {
+                    let player = Q.GameState.turnOrder[0];
+                    let tileOn = Q.MapController.getTileAt(player.loc);
+                    let ownedBy = tileOn.ownedBy;
+                    Q.GameController.buyOutShop(player, tileOn);
+                    if(!Q.isServer()){
+                        Q.MenuController.turnOffDialogueInputs();
+                    }
+                    Q.GameController.endTurn();
+                    return {func: "buyOutShop", shopLoc: player.loc};
+                },
+                confirmFalse: () => {
+                    Q.GameController.endTurn();
+                    return {func: "endTurn"};
                 }
             }
         },
@@ -424,7 +589,6 @@ Quintus.GameControl = function(Q) {
             if(this.currentCont){
                 this.currentCont.p.menuButtons[this.currentItem[1]][this.currentItem[0]].hover();
             }
-            console.log(this.currentItem)
             return {item: this.currentItem, func: "navigateMenu"};
         },
         processInput: function(input, socket){

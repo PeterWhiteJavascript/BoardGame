@@ -301,7 +301,7 @@ Quintus.UI = function(Q) {
       this.setFont(Q.ctx);
       if(this.container){
         var width = this.container.p.textWidth || this.container.p.w;
-        p.label = this.wrapLabel(p.label, width);
+        //p.label = this.wrapLabel(p.label, width);
       }
       this.splitLabel = p.label.split("\n");
       p.w = 0;
@@ -417,7 +417,7 @@ Quintus.UI = function(Q) {
 
   });
   
-  
+    //This totally doesn't calculate the width properly... -Peter
     Q.UI.Text.prototype.wrapLabel = function(label,maxWidth){
         var ctx = Q.ctx;
         var split = label.split(' ');
@@ -426,12 +426,12 @@ Quintus.UI = function(Q) {
         var spaceWidth = ctx.measureText(" ").width;
         var spaces = 0;
         //Loop through the array of the split label
-        for(var i=0;i<split.length;i++){
+        for(var i = 0; i < split.length; i++){
             //Run regex to get rid of extra line breaks (Optimally, the logic could be improved to not need this)
             //This is only needed for the streaming text for Dialogue. Maybe the label for that should be saved before this modification or something
             split[i] = split[i].replace(/(\r\n|\n|\r)/gm,"");
             //The upcoming width for this word
-            var nextWidth = split[i] ? ctx.measureText(split[i]).width + 4 : 0;
+            var nextWidth = split[i] ? ctx.measureText(split[i]).width - 4 : 0;
             for(var j=0;j<split[i].length;j++){
                 var measured = ctx.measureText(tempLabel);
                 //Move to a new line

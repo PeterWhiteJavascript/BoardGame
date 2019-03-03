@@ -71,7 +71,7 @@ function game(p){
         case "ffa":
         case "timed":
         case "2v2":
-            this.numOfPlayers = 2;//1;//4
+            this.numOfPlayers = 1;//4
             break;
         case "custom":
             this.numOfPlayers = this.settings.numOfPlayers;
@@ -83,7 +83,7 @@ function game(p){
     
 }
 
-
+let colors = ["blue", "red", "yellow", "green", "cyan", "teal", "brown", "orange", "gold", "purple"];
 io.on('connection', function (socket) {
     userCount++;
     id++;
@@ -93,7 +93,8 @@ io.on('connection', function (socket) {
     //This user information
     let user = {
         id: id,
-        ready: false
+        ready: false,
+        color: colors[~~(Math.random() * colors.length )]
     };
     //Create a game if there is none in this room
     if(!gameData[gameRoom]){
@@ -133,7 +134,7 @@ io.on('connection', function (socket) {
         //TODO: using current game state, figure out what this input is for.
         //For now, move the player around.
         let props = {};
-        console.log(Q.GameState.inputState.func)
+        //console.log(Q.GameState.inputState.func)
         switch(Q.GameState.inputState.func){
             case "rollDie":
                 //Roll the die

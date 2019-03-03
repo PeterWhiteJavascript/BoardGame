@@ -7,11 +7,67 @@
         "w":128,
         "h":96
     },
+    "player-icon-1":{
+        "tilew":32,
+        "tileh":32,
+        "sx":0,
+        "sy":96,
+        "w":32,
+        "h":32
+    },
     "tile-structure-1":{
         "tilew":64,
         "tileh":64,
         "sx":128,
         "sy":0,
+        "w":64,
+        "h":64
+    },
+    "tile-structure-2":{
+        "tilew":64,
+        "tileh":64,
+        "sx":128,
+        "sy":64,
+        "w":64,
+        "h":64
+    },
+    "tile-structure-3":{
+        "tilew":64,
+        "tileh":64,
+        "sx":128,
+        "sy":128,
+        "w":64,
+        "h":64
+    },
+    "tile-structure-4":{
+        "tilew":64,
+        "tileh":64,
+        "sx":128,
+        "sy":192,
+        "w":64,
+        "h":64
+    },
+    "tile-structure-5":{
+        "tilew":64,
+        "tileh":64,
+        "sx":128,
+        "sy":256,
+        "w":64,
+        "h":64
+    },
+    "home-base-1":{
+        "tilew":64,
+        "tileh":64,
+        "sx":192,
+        "sy":64,
+        "w":64,
+        "h":64
+    },
+    "shop-for-sale-signpost":{
+        "tilew":64,
+        "tileh":64,
+        "sx":192,
+        "sy":128,
         "w":64,
         "h":64
     },

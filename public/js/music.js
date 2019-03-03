@@ -3,7 +3,7 @@ Quintus.Music=function(Q){
 Q.GameObject.extend("audioController",{
     loadedMusic:[],
     currentMusic:"",
-    playMusic:function(music,callback){
+    playMusic:function(music, callback){
         if(!music) music = this.currentMusic || this.lastMusic;
         music += ".mp3";
         this.lastMusic = this.currentMusic;
@@ -14,16 +14,17 @@ Q.GameObject.extend("audioController",{
             if(!ld){
                 this.stopMusic(this.currentMusic);
                 this.stopMusic(music);
-                Q.load("bgm/"+music,function(){
-                    Q.audio.play("bgm/"+music,{loop:true, volume:Q.OptionsController.options.musicVolume});
+                Q.load("audio/bgm/" + music,function(){
+                    Q.audio.play("audio/bgm/" + music, {loop:true, volume:Q.OptionsController.options.musicVolume});
                     loadedMusic.push(music);
+                    console.log(Q.assets)
                     if(callback){callback();}
-                },{progressCallback:Q.progressCallback});
+                }, { progressCallback: Q.progressCallback } );
             //If the music is different than the currentMusic
             } else if(this.currentMusic !== music){
                 this.stopMusic(this.currentMusic);
                 this.stopMusic(music);
-                Q.audio.play("bgm/"+music,{loop:true, volume:Q.OptionsController.options.musicVolume});
+                Q.audio.play("audio/bgm/" + music + ".mp3", {loop:true, volume:Q.OptionsController.options.musicVolume});
             }
             //Do the callback instantly if the music has been loaded
             if(ld){

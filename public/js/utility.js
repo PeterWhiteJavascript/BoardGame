@@ -4,12 +4,12 @@ var quintusUtility = function(Quintus) {
 Quintus.Utility = function(Q) {
     
     Q.getXY = function(loc){
-        return {x:loc[0] * Q.c.tileW + Q.c.tileW / 2,y:loc[1] * Q.c.tileH + Q.c.tileH / 2};
+        return {x:loc[0] * Q.c.tileW + Q.c.tileW / 2  + loc[0] * Q.c.tileOffset,y:loc[1] * Q.c.tileH + Q.c.tileH / 2 + loc[1] * Q.c.tileOffset};
     };
     Q.setXY = function(obj, loc){
         loc = loc || obj.p.loc;
-        obj.p.x = loc[0] * Q.c.tileW;
-        obj.p.y = loc[1] * Q.c.tileH;
+        obj.p.x = loc[0] * Q.c.tileW + loc[0] * Q.c.tileOffset;
+        obj.p.y = loc[1] * Q.c.tileH + loc[1] * Q.c.tileOffset;
     };
     Q.createArray = function(value, width, height) {
         let array = [];
