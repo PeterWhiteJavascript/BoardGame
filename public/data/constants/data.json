@@ -4,5 +4,10 @@
     },
     "tileW": 64,
     "tileH": 48,
-    "tileOffset": 4
+    "tileOffset": 4,
+    "vendorText": {
+        "Peanut":["Want a peanut? \nIt'll only cost you peanuts hahaha!"],
+        "Almond":["Fresh almonds here. \nThey're pretty cheap I guess."],
+        "Cashew":["These cashews are the real deal. \nAre you gonna pay up?"]
+    }
 }

@@ -155,9 +155,13 @@ io.on('connection', function (socket) {
                 
                 break;
             case "navigateMenu":
-                props = Q.MenuController.processInput(data.input, socket);
+                props = Q.MenuController.processInput(data.input);
                 if(props && props.func){
                     socket.broadcast.to(gameRoom).emit("inputResult", {key: data.input, playerId: user.id, func: props.func, props: props});
+                    //Use this when server response is required (random numbers)
+                    if(props.self){
+                        socket.emit("inputResult", {key: data.input, playerId: user.id, func: props.func, props: props});
+                    }
                 }
                 break;
             //When the player is moving after the has been rolled
@@ -166,7 +170,7 @@ io.on('connection', function (socket) {
                 if(obj){
                     props.input = data.input;
                     props.locTo = obj.loc;
-                    if(obj.finish){
+                    if(obj.finish && !obj.passBy){
                         props.finish = obj.finish;
                         Q.GameState.inputState = Q.MenuController.inputStates.menuMovePlayer;
                         ////This is not added to any stage/scene since those don't exist on the server.

@@ -58,10 +58,9 @@ Q.socket.on('connected', function (connectionData) {
         //Override any changes with these values just in case.
         Q.processInputResult = function(data){
             let player, shop;
-            console.log(data)
             switch(data.func){
                 case "rollDie":
-                    Q.clearStage(1);
+                    Q.GameState.currentMovementNum = data.props.roll;
                     Q.GameController.startRollingDie(1, Q.GameState.turnOrder[0].sprite);
                     break;
                 case "stopDieAndAllowMovement":
@@ -83,7 +82,10 @@ Q.socket.on('connected', function (connectionData) {
                     //Show the tile props in a menu
                     Q.stage(2).hoverShop(Q.MapController.getTileAt(data.props.locTo));
                     
-                    if(data.props.finish){
+                    //Check the passby
+                    Q.MapController.checkPassByTile(player, data.props.locTo, data.props.finish);
+                    
+                    if(data.props.finish && !data.props.passBy){
                         Q.GameController.askFinishMove(player);
                     }
                     break;
@@ -138,9 +140,6 @@ Q.socket.on('connected', function (connectionData) {
             }
         };
         Q.socket.on("inputResult", Q.processInputResult);
-        Q.socket.on("receiveRoll", function(data){
-            Q.GameState.currentMovementNum = data.roll;
-        });
         
         Q.socket.emit("readyToStartGame");
         

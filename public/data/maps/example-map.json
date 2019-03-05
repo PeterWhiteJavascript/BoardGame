@@ -9,7 +9,6 @@
             "type": "shop",
             "district": 0,
             "move": {
-                "dir": ["right", "down"],
                 "type": "normal"
             }
         },
@@ -22,7 +21,6 @@
             "type": "shop",
             "district": 0,
             "move": {
-                "dir": ["left","right"],
                 "type": "normal"
             }
         },
@@ -35,7 +33,6 @@
             "type": "shop",
             "district": 0,
             "move": {
-                "dir": ["left", "right"],
                 "type": "normal"
             }
         },
@@ -48,7 +45,6 @@
             "type": "shop",
             "district": 0,
             "move": {
-                "dir": ["left", "right"],
                 "type": "normal"
             }
         },
@@ -61,7 +57,6 @@
             "type": "shop",
             "district": 0,
             "move": {
-                "dir": ["left", "down"],
                 "type": "normal"
             }
         },
@@ -70,7 +65,6 @@
             "y": 6,
             "type": "main",
             "move": {
-                "dir": ["left", "up"],
                 "type": "normal"
             }
         },
@@ -83,20 +77,18 @@
             "type": "shop",
             "district": 1,
             "move": {
-                "dir": ["left"],
                 "type": "normal"
             }
         },
         {
-            "x": 4,
-            "y": 8,
+            "x": 0,
+            "y": 4,
             "value": 100,
             "rank": 1,
             "name": "Candy Store",
             "type": "shop",
-            "district": 1,
+            "district": 2,
             "move": {
-                "dir": ["left", "right"],
                 "type": "normal"
             }
         },
@@ -109,7 +101,6 @@
             "type": "shop",
             "district": 2,
             "move": {
-                "dir": ["up", "right"],
                 "type": "normal"
             }
         },
@@ -122,7 +113,6 @@
             "type": "shop",
             "district": 2,
             "move": {
-                "dir": ["up", "down"],
                 "type": "normal"
             }
         },
@@ -135,20 +125,144 @@
             "type": "shop",
             "district": 2,
             "move": {
-                "dir": ["up", "down"],
                 "type": "normal"
             }
         },
         {
-            "x": 0,
-            "y": 4,
-            "value": 800,
-            "rank": 1,
-            "name": "Bistro",
-            "type": "shop",
-            "district": 2,
+            "x": 4,
+            "y": 8,
+            "name": "Peanut Vendor",
+            "type": "vendor",
+            "item": ["Peanut", 5],
             "move": {
-                "dir": ["up", "down"],
+                "type": "normal"
+            }
+        },
+        {
+            "x": 8,
+            "y": 8,
+            "value": 50,
+            "rank": 1,
+            "name": "Street Shop",
+            "type": "shop",
+            "district": 1,
+            "move": {
+                "type": "normal"
+            }
+        },
+        {
+            "x": 10,
+            "y": 8,
+            "name": "Almond Vendor",
+            "type": "vendor",
+            "item": ["Almond", 25],
+            "move": {
+                "type": "normal"
+            }
+        },
+        {
+            "x": 10,
+            "y": 6,
+            "value": 50,
+            "rank": 1,
+            "name": "Street Shop",
+            "type": "shop",
+            "district": 1,
+            "move": {
+                "type": "normal"
+            }
+        },
+        {
+            "x": 10,
+            "y": 4,
+            "value": 50,
+            "rank": 1,
+            "name": "Street Shop",
+            "type": "shop",
+            "district": 1,
+            "move": {
+                "type": "normal"
+            }
+        },
+        {
+            "x": 8,
+            "y": 4,
+            "value": 50,
+            "rank": 1,
+            "name": "Street Shop",
+            "type": "shop",
+            "district": 1,
+            "move": {
+                "type": "normal"
+            }
+        },
+        {
+            "x": 12,
+            "y": 4,
+            "value": 50,
+            "rank": 1,
+            "name": "Street Shop",
+            "type": "shop",
+            "district": 1,
+            "move": {
+                "type": "normal"
+            }
+        },
+        {
+            "x": 12,
+            "y": 2,
+            "value": 50,
+            "rank": 1,
+            "name": "Street Shop",
+            "type": "shop",
+            "district": 3,
+            "move": {
+                "type": "normal"
+            }
+        },
+        {
+            "x": 12,
+            "y": 0,
+            "name": "Cashew Vendor",
+            "type": "vendor",
+            "item": ["Cashew", 150],
+            "move": {
+                "type": "normal"
+            }
+        },
+        {
+            "x": 10,
+            "y": 0,
+            "value": 50,
+            "rank": 1,
+            "name": "Street Shop",
+            "type": "shop",
+            "district": 3,
+            "move": {
+                "type": "normal"
+            }
+        },
+        {
+            "x": 8,
+            "y": 0,
+            "value": 50,
+            "rank": 1,
+            "name": "Street Shop",
+            "type": "shop",
+            "district": 3,
+            "move": {
+                "type": "normal"
+            }
+        },
+        {
+            "x": 6,
+            "y": 0,
+            "value": 50,
+            "rank": 1,
+            "name": "Street Shop",
+            "type": "shop",
+            "district": 3,
+            "move": {
                 "type": "normal"
             }
         }
@@ -161,13 +275,30 @@
         },
         {
             "color": "blue",
-            "numShops": 2,
+            "numShops": 6,
             "stockPrice": 10
         },
         {
             "color": "green",
-            "numShops": 2,
+            "numShops": 4,
             "stockPrice": 10
+        },
+        {
+            "color": "red",
+            "numShops": 4,
+            "stockPrice": 10
+        }
+    ],
+    "sets":[
+        {
+            "name": "Just a Peanut",
+            "items": ["Peanut"],
+            "value": 100
+        },
+        {
+            "name": "All 3 Nuts",
+            "items": ["Peanut", "Cashew", "Almond"],
+            "value": 500
         }
     ],
     "map": {

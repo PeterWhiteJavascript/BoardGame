@@ -63,6 +63,30 @@
         "w":64,
         "h":64
     },
+    "peanut-vendor":{
+        "tilew":64,
+        "tileh":64,
+        "sx":256,
+        "sy":64,
+        "w":64,
+        "h":64
+    },
+    "cashew-vendor":{
+        "tilew":64,
+        "tileh":64,
+        "sx":320,
+        "sy":64,
+        "w":64,
+        "h":64
+    },
+    "almond-vendor":{
+        "tilew":64,
+        "tileh":64,
+        "sx":384,
+        "sy":64,
+        "w":64,
+        "h":64
+    },
     "shop-for-sale-signpost":{
         "tilew":64,
         "tileh":64,

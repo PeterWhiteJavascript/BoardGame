@@ -2,7 +2,14 @@ var quintusUtility = function(Quintus) {
 "use strict";
 
 Quintus.Utility = function(Q) {
-    
+    Q.convertDirToCoord = function(dir){
+        switch(dir){
+            case "up": return [0, -2];
+            case "right": return [2, 0];
+            case "down": return [0, 2];
+            case "left": return [-2, 0];
+        }
+    };
     Q.getXY = function(loc){
         return {x:loc[0] * Q.c.tileW + Q.c.tileW / 2  + loc[0] * Q.c.tileOffset,y:loc[1] * Q.c.tileH + Q.c.tileH / 2 + loc[1] * Q.c.tileOffset};
     };

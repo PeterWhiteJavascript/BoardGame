@@ -14,7 +14,7 @@ Quintus.Objects = function(Q) {
             this.tileData = p;
             Q.setXY(this);
             this.on("inserted");
-            this.p.backgroundColor = Q.stage(0).insert(new Q.UI.Container({x: this.p.x, y: this.p.y, h: this.p.h, w: this.p.w, fill: "lightgrey", cx: 0, cy:0}));
+            this.p.backgroundColor = Q.stage(0).insert(new Q.UI.Container({x: this.p.x + 3, y: this.p.y + 3, h: this.p.h - 6, w: this.p.w - 6, fill: "lightgrey", cx: 0, cy:0}));
         },
         inserted: function(){
             switch(this.p.type){
@@ -26,6 +26,10 @@ Quintus.Objects = function(Q) {
                 case "main":
                     //TEMP
                     this.p.homeText = this.stage.insert(new Q.UI.Text({x:Q.c.tileW, y: Q.c.tileH * 1.35, label:"HOME", size: 18}), this);
+                    break;
+                case "vendor":
+                    this.p.vendorIcon = this.stage.insert(new Q.Sprite({x:Q.c.tileW / 2, y: 0, cx:0, cy:0, sheet: (this.tileData.itemName.toLowerCase()) + "-vendor", frame: 0}), this);
+                    this.p.vendorText = this.stage.insert(new Q.UI.Text({x:Q.c.tileW, y: Q.c.tileH * 1.35, label: "" + (this.tileData.itemCost ? this.tileData.itemCost : "Free"), size: 18}), this);
                     break;
             }
         },
@@ -73,6 +77,16 @@ Quintus.Objects = function(Q) {
             this.p.allowMovement = true;
             let tileOn = Q.MapController.getTileAt(this.p.loc);
             let dirs = Object.keys(tileOn.move.dir);
+            //Force the player to continue along the path that they were on from last turn.
+            if(Q.GameState.currentMovementPath.length <= 1) {
+                let lastTile =  Q.GameState.turnOrder[0].lastTile;
+                if(lastTile){
+                    dirs.forEach((dir, i) => {
+                        let loc = Q.convertDirToCoord(dir);
+                        if(tileOn.loc[0] + loc[0] === lastTile.loc[0] && tileOn.loc[1] + loc[1] === lastTile.loc[1]) dirs.splice(i, 1);
+                    });
+                }
+            }
             
             for(let i = 0; i < dirs.length; i++){
                 this.directionArrows.push(this.stage.insert(new Q.DirectionArrow({sheet: "arrow-" + dirs[i]}), this));
@@ -244,7 +258,7 @@ Quintus.Objects = function(Q) {
                 }
             }
         },
-        displayOptions: function(options){
+        displayOptions: function(options, onHover){
             let cursor = new Q.Cursor();
             this.p.menuButtons = [];
             let menuButtonCont = this;
@@ -264,6 +278,11 @@ Quintus.Objects = function(Q) {
                         }
                     }
                 });
+                if(onHover) {
+                    button.on("hover", function(){
+                        onHover(button);
+                    });
+                }
                 this.p.menuButtons.push([button]);
             }
             this.p.menuButtons[0][0].hover();
@@ -378,6 +397,54 @@ Quintus.Objects = function(Q) {
             
         }
     });
+    Q.UI.Container.extend("SetsMenu",{
+        init: function(p){
+            this._super(p, {
+                cx:0, cy:0,
+                w: Q.width / 2,
+                h: Q.height / 2,
+                x: Q.width / 4,
+                y: Q.height / 4, 
+                fill: Q.OptionsController.options.menuColor, 
+                opacity:0.8, 
+                border:1
+            });
+            this.on("inserted");
+        },
+        inserted: function(){
+            let player = this.p.player;
+            let sets = Q.GameState.map.data.sets;
+            //Insert all sets that exist in this map and show the passed in player's set items.
+            let setHeight = this.p.h / 5 - 12;
+            for(let i = 0; i < sets.length; i++){
+                let cont = this.insert(new Q.UI.Container({cx:0, cy:0, w: this.p.w - 20, h: setHeight, x: 10, y: 10 + i * ~~((this.p.h - 10) / 5)}));
+                let setImagesCont = cont.insert(new Q.UI.Container({cx:0, cy:0, w: cont.p.w * 0.7, h: cont.p.h}));
+                for(let j = 0; j < sets[i].items.length; j++){
+                    setImagesCont.insert(new Q.UI.Container({x: 10 + j * ~~((setImagesCont.p.w - 10) / 5) - 8, y: 10 - 8, w: 80, h: 80, cx: 0, cy:0, border: 5, radius: 40, fill: "gold", opacity: 0.5}));
+                    setImagesCont.insert(new Q.Sprite({x: 10 + j * ~~((setImagesCont.p.w - 10) / 5), y: 10, cx: 0, cy:0, sheet: (sets[i].items[j].toLowerCase()) + "-vendor", frame: 0}));
+                }
+                let setTextCont = cont.insert(new Q.UI.Container({cx:0, cy:0, w: cont.p.w * 0.3, h: cont.p.h, x: cont.p.w * 0.7, fill: "#EEE"}));
+                setTextCont.insert(new Q.UI.Text({cx:0, cy:0, x: 10, y: 10, label: sets[i].name, align: "left"}));
+                setTextCont.insert(new Q.UI.Text({cx:0, cy:0, x: 10, y: setTextCont.p.h / 2, label: sets[i].value + " G", align: "left"}));
+            }
+            console.log(this)
+        },
+        hoverSet: function(set){
+            this.children.forEach((child) => {
+                child.children[0].p.fill = "transparent";
+            });
+            if(set.p.label === "Nothing") return;
+            
+            let toHover = this.children.find((child) => {
+                return child.children[1].children[0].p.label === set.p.label;
+            });
+            toHover.children[0].p.fill = "gold";
+            console.log(toHover)
+            
+            
+        }
+    });
+    
     Q.GameObject.extend("textProcessor",{
         evaluateStringConditional:function(vr, op, vl){
             switch(op){
@@ -425,6 +492,8 @@ Quintus.Objects = function(Q) {
         let dialogueBox = stage.insert(new Q.StandardMenu({x: Q.width / 2 - 350, y:Q.height - 210, w: 700, h: 200}));
         let textArea = dialogueBox.insert(new Q.UI.Container({x:10, y:10, cx:0, cy:0, w:490, h:180}));
         let optionsArea = dialogueBox.insert(new Q.MenuButtonContainer({x:510, y:5, cx:0, cy:0, w:185, h:190}));
+        if(stage.options.dialogue.onLoadMenu) stage.options.dialogue.onLoadMenu(stage);
+        
         optionsArea.p.dialogue = stage.options.dialogue.text;
         optionsArea.p.idx = 0;
         function processDialogue(){
@@ -444,7 +513,7 @@ Quintus.Objects = function(Q) {
             
             if(!dialogue[idx + 1]){
                 Q.MenuController.currentCont = optionsArea;
-                Q.MenuController.currentCont.displayOptions(stage.options.dialogue.options);
+                Q.MenuController.currentCont.displayOptions(stage.options.dialogue.options, stage.options.dialogue.onHoverOption);
             }
         }
         processDialogue();
