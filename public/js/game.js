@@ -82,7 +82,7 @@ Quintus.Game = function(Q) {
             this.children.forEach((star) => {star.destroy(); });
             let space = 20;
             for(let i = 0; i < rank; i++){
-                this.insert(new Q.UI.Text({label: "*", x: rank + i * space - (((rank - 1 ) / 2) * space) - rank, y: -shopRankContainer.p.h / 4}));
+                this.insert(new Q.UI.Text({label: "*", x: i * space - (((rank - 1 ) / 2) * space), y: -shopRankContainer.p.h / 4}));
             }
         };
         

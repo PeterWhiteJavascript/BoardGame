@@ -7,10 +7,7 @@
             "rank": 1,
             "name": "Bakery",
             "type": "shop",
-            "district": 0,
-            "move": {
-                "type": "normal"
-            }
+            "district": 0
         },
         {
             "x": 2,
@@ -19,10 +16,7 @@
             "rank": 2,
             "name": "Butcher",
             "type": "shop",
-            "district": 0,
-            "move": {
-                "type": "normal"
-            }
+            "district": 0
         },
         {
             "x": 4,
@@ -31,10 +25,7 @@
             "rank": 1,
             "name": "Lemonade Stall",
             "type": "shop",
-            "district": 0,
-            "move": {
-                "type": "normal"
-            }
+            "district": 0
         },
         {
             "x": 6,
@@ -43,10 +34,7 @@
             "rank": 2,
             "name": "Clothing Store",
             "type": "shop",
-            "district": 0,
-            "move": {
-                "type": "normal"
-            }
+            "district": 0
         },
         {
             "x": 6,
@@ -55,18 +43,12 @@
             "rank": 3,
             "name": "Furniture Shop",
             "type": "shop",
-            "district": 0,
-            "move": {
-                "type": "normal"
-            }
+            "district": 0
         },
         {
             "x": 6,
             "y": 6,
-            "type": "main",
-            "move": {
-                "type": "normal"
-            }
+            "type": "main"
         },
         {
             "x": 6,
@@ -75,10 +57,7 @@
             "rank": 1,
             "name": "Paint Shop",
             "type": "shop",
-            "district": 1,
-            "move": {
-                "type": "normal"
-            }
+            "district": 1
         },
         {
             "x": 0,
@@ -87,10 +66,7 @@
             "rank": 1,
             "name": "Candy Store",
             "type": "shop",
-            "district": 2,
-            "move": {
-                "type": "normal"
-            }
+            "district": 2
         },
         {
             "x": 2,
@@ -99,10 +75,7 @@
             "rank": 1,
             "name": "Ice Cream Shop",
             "type": "shop",
-            "district": 2,
-            "move": {
-                "type": "normal"
-            }
+            "district": 2
         },
         {
             "x": 0,
@@ -111,10 +84,7 @@
             "rank": 3,
             "name": "Jewelry Store",
             "type": "shop",
-            "district": 2,
-            "move": {
-                "type": "normal"
-            }
+            "district": 2
         },
         {
             "x": 0,
@@ -123,20 +93,14 @@
             "rank": 1,
             "name": "Chinese Restaurant",
             "type": "shop",
-            "district": 2,
-            "move": {
-                "type": "normal"
-            }
+            "district": 2
         },
         {
             "x": 4,
             "y": 8,
             "name": "Peanut Vendor",
             "type": "vendor",
-            "item": ["Peanut", 5],
-            "move": {
-                "type": "normal"
-            }
+            "item": ["Peanut", 5]
         },
         {
             "x": 8,
@@ -145,32 +109,32 @@
             "rank": 1,
             "name": "Street Shop",
             "type": "shop",
-            "district": 1,
-            "move": {
-                "type": "normal"
-            }
+            "district": 1
         },
         {
             "x": 10,
             "y": 8,
             "name": "Almond Vendor",
             "type": "vendor",
-            "item": ["Almond", 25],
-            "move": {
-                "type": "normal"
-            }
+            "item": ["Almond", 25]
         },
         {
-            "x": 10,
+            "x": 12,
             "y": 6,
             "value": 50,
             "rank": 1,
             "name": "Street Shop",
             "type": "shop",
-            "district": 1,
-            "move": {
-                "type": "normal"
-            }
+            "district": 1
+        },
+        {
+            "x": 12,
+            "y": 8,
+            "value": 50,
+            "rank": 1,
+            "name": "Street Shop",
+            "type": "shop",
+            "district": 1
         },
         {
             "x": 10,
@@ -180,9 +144,7 @@
             "name": "Street Shop",
             "type": "shop",
             "district": 1,
-            "move": {
-                "type": "normal"
-            }
+            "dirs": ["left"]
         },
         {
             "x": 8,
@@ -192,9 +154,7 @@
             "name": "Street Shop",
             "type": "shop",
             "district": 1,
-            "move": {
-                "type": "normal"
-            }
+            "dirs": ["left"]
         },
         {
             "x": 12,
@@ -203,10 +163,7 @@
             "rank": 1,
             "name": "Street Shop",
             "type": "shop",
-            "district": 1,
-            "move": {
-                "type": "normal"
-            }
+            "district": 1
         },
         {
             "x": 12,
@@ -215,20 +172,14 @@
             "rank": 1,
             "name": "Street Shop",
             "type": "shop",
-            "district": 3,
-            "move": {
-                "type": "normal"
-            }
+            "district": 3
         },
         {
             "x": 12,
             "y": 0,
             "name": "Cashew Vendor",
             "type": "vendor",
-            "item": ["Cashew", 150],
-            "move": {
-                "type": "normal"
-            }
+            "item": ["Cashew", 150]
         },
         {
             "x": 10,
@@ -237,10 +188,7 @@
             "rank": 1,
             "name": "Street Shop",
             "type": "shop",
-            "district": 3,
-            "move": {
-                "type": "normal"
-            }
+            "district": 3
         },
         {
             "x": 8,
@@ -249,10 +197,7 @@
             "rank": 1,
             "name": "Street Shop",
             "type": "shop",
-            "district": 3,
-            "move": {
-                "type": "normal"
-            }
+            "district": 3
         },
         {
             "x": 6,
@@ -261,10 +206,7 @@
             "rank": 1,
             "name": "Street Shop",
             "type": "shop",
-            "district": 3,
-            "move": {
-                "type": "normal"
-            }
+            "district": 3
         }
     ],
     "districts": [
@@ -275,7 +217,7 @@
         },
         {
             "color": "blue",
-            "numShops": 6,
+            "numShops": 7,
             "stockPrice": 10
         },
         {

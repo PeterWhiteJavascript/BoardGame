@@ -32,6 +32,14 @@ Quintus.Objects = function(Q) {
                     this.p.vendorText = this.stage.insert(new Q.UI.Text({x:Q.c.tileW, y: Q.c.tileH * 1.35, label: "" + (this.tileData.itemCost ? this.tileData.itemCost : "Free"), size: 18}), this);
                     break;
             }
+            //If the tile has restricted directions, display them.
+            if(this.tileData.dirs){
+                for(let i = 0; i < this.tileData.dirs.length; i++){
+                    this.stage.insert(new Q.Sprite({x: Q.c.tileW - 20, y: Q.c.tileH * 2 + 8, sheet: "arrow-" + this.tileData.dirs[i], frame: 0}), this);
+                    this.stage.insert(new Q.Sprite({x: Q.c.tileW, y: Q.c.tileH * 2 + 8, sheet: "arrow-" + this.tileData.dirs[i], frame: 0}), this);
+                    this.stage.insert(new Q.Sprite({x: Q.c.tileW + 20, y: Q.c.tileH * 2 + 8, sheet: "arrow-" + this.tileData.dirs[i], frame: 0}), this);
+                }
+            }
         },
         sellTile: function(){
             this.p.valueText.p.y = 10;
@@ -75,8 +83,9 @@ Quintus.Objects = function(Q) {
         },
         showMovementDirections: function(){
             this.p.allowMovement = true;
+            let lastTile = Q.GameState.currentMovementPath[Q.GameState.currentMovementPath.length - 2];
             let tileOn = Q.MapController.getTileAt(this.p.loc);
-            let dirs = Object.keys(tileOn.move.dir);
+            let dirs = tileOn.dirs ? tileOn.dirs.slice() : Object.keys(tileOn.dir);
             //Force the player to continue along the path that they were on from last turn.
             if(Q.GameState.currentMovementPath.length <= 1) {
                 let lastTile =  Q.GameState.turnOrder[0].lastTile;
@@ -87,6 +96,27 @@ Quintus.Objects = function(Q) {
                     });
                 }
             }
+            //Check all potential tiles and make sure that if any of them are one-way, don't allow this tile to go there.
+            dirs.forEach((dir, i) => {
+                let tile = tileOn.dir[dir];
+                if(tile && (!lastTile || !Q.locsMatch(lastTile.loc, tile.loc))){
+                    let toDir = Q.convertCoordToDir(Q.compareLocsForDirection(tile.loc, tileOn.loc));
+                    if(tile.dirs && tile.dirs.includes(toDir)){
+                        dirs.splice(i, 1);
+                        i--;
+                    }
+                }
+            });
+            
+            //Allow going back if it's the last tile
+            if(tileOn.dirs){
+                if(lastTile){
+                    let allowDir = Q.convertCoordToDir(Q.compareLocsForDirection(tileOn.loc, lastTile.loc));
+                    dirs.push(allowDir);
+                }
+            }
+            
+            
             
             for(let i = 0; i < dirs.length; i++){
                 this.directionArrows.push(this.stage.insert(new Q.DirectionArrow({sheet: "arrow-" + dirs[i]}), this));
@@ -365,7 +395,7 @@ Quintus.Objects = function(Q) {
     Q.UI.Text.extend("StandardText", {
         init: function(p){
             this._super(p, {
-                size: 20,
+                size: 18,
                 color: Q.OptionsController.options.textColor,
                 align: "right",
                 family: "Verdana"
@@ -420,14 +450,15 @@ Quintus.Objects = function(Q) {
                 let cont = this.insert(new Q.UI.Container({cx:0, cy:0, w: this.p.w - 20, h: setHeight, x: 10, y: 10 + i * ~~((this.p.h - 10) / 5)}));
                 let setImagesCont = cont.insert(new Q.UI.Container({cx:0, cy:0, w: cont.p.w * 0.7, h: cont.p.h}));
                 for(let j = 0; j < sets[i].items.length; j++){
-                    setImagesCont.insert(new Q.UI.Container({x: 10 + j * ~~((setImagesCont.p.w - 10) / 5) - 8, y: 10 - 8, w: 80, h: 80, cx: 0, cy:0, border: 5, radius: 40, fill: "gold", opacity: 0.5}));
-                    setImagesCont.insert(new Q.Sprite({x: 10 + j * ~~((setImagesCont.p.w - 10) / 5), y: 10, cx: 0, cy:0, sheet: (sets[i].items[j].toLowerCase()) + "-vendor", frame: 0}));
+                    let xLoc = j * 100 - (((sets[i].items.length - 1 ) / 2) * 100) + setImagesCont.p.w / 2;
+                    setImagesCont.insert(new Q.UI.Container({x: xLoc, y: 10 - 5, w: 70, h: 70, cy:0, border: 5, radius: 20, fill: "gold", opacity: 0.5}));
+                    setImagesCont.insert(new Q.Sprite({x: xLoc, y: 10, cy:0, sheet: (sets[i].items[j].toLowerCase()) + "-vendor", frame: 0}));
+                    setImagesCont.insert(new Q.UI.Text({x: xLoc + 20, y: 10, label: (player.setPieces[sets[i].items[j]] || 0) + ""}));
                 }
                 let setTextCont = cont.insert(new Q.UI.Container({cx:0, cy:0, w: cont.p.w * 0.3, h: cont.p.h, x: cont.p.w * 0.7, fill: "#EEE"}));
                 setTextCont.insert(new Q.UI.Text({cx:0, cy:0, x: 10, y: 10, label: sets[i].name, align: "left"}));
                 setTextCont.insert(new Q.UI.Text({cx:0, cy:0, x: 10, y: setTextCont.p.h / 2, label: sets[i].value + " G", align: "left"}));
             }
-            console.log(this)
         },
         hoverSet: function(set){
             this.children.forEach((child) => {
@@ -439,9 +470,6 @@ Quintus.Objects = function(Q) {
                 return child.children[1].children[0].p.label === set.p.label;
             });
             toHover.children[0].p.fill = "gold";
-            console.log(toHover)
-            
-            
         }
     });
     

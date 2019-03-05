@@ -111,11 +111,33 @@ Quintus.GameControl = function(Q) {
         },
         //Run when the player presses a directional input while moving their dice roll.
         processPlayerMovement: function(input, id){
-            let finish, direction;
+            let finish, direction, invalidForwardLoc;
             let player = Q.GameController.getPlayer(id);
             let tileOn = Q.MapController.getTileAt(player.loc);
-            let tileTo = tileOn.move.dir[input];
-            if(tileTo && (Q.GameState.currentMovementPath > 1 || tileTo !== player.lastTile)){
+            let tileTo = tileOn.dir[input];
+            
+            //If there's a tile, and it's not equal to the lastTile (the tile that the player landed on from last turn)
+            if(tileTo && (Q.GameState.currentMovementPath.length > 1 || tileTo !== player.lastTile)){
+                
+                //If the tile that the player is on can only go certain directions, make sure that the user has pressed a valid direction.
+                if(tileOn.dirs){
+                    let dirs = tileOn.dirs.slice();
+                    let allowDir = Q.convertCoordToDir(Q.compareLocsForDirection(tileOn.loc, tileTo.loc));
+                    //Only allow it if the previous tile is equal to the tile to
+                    if(Q.GameState.currentMovementPath.length > 1 && Q.locsMatch(tileTo.loc, Q.GameState.currentMovementPath[Q.GameState.currentMovementPath.length - 2].loc)){
+                        dirs.push(allowDir);
+                    }
+                    if(!dirs.includes(input)){
+                        return false;
+                    }
+                }
+                
+                
+                
+                if(tileTo.dirs && tileTo.dirs.length === 1 && tileTo.dirs[0] === Q.getOppositeDir(input)){
+                    invalidForwardLoc = true;
+                }
+                
                 //If the player has gone back a tile
                 if(Q.GameState.currentMovementPath.length > 1 && tileTo === Q.GameState.currentMovementPath[Q.GameState.currentMovementPath.length - 2]){
                     Q.GameState.currentMovementPath.pop();
@@ -123,13 +145,16 @@ Quintus.GameControl = function(Q) {
                 } 
                 //If the player has gone forward a tile.
                 else {
-                    if(Q.GameState.currentMovementPath.length <= Q.GameState.currentMovementNum){
-                        Q.GameState.currentMovementPath.push(tileTo);
-                    } else {
-                        return false;
+                    if(!invalidForwardLoc){
+                        if(Q.GameState.currentMovementPath.length <= Q.GameState.currentMovementNum){
+                            Q.GameState.currentMovementPath.push(tileTo);
+                        } else {
+                            return false;
+                        }
+                        direction = "forward";
                     }
-                    direction = "forward";
                 }
+                if(!direction) return false;
                 Q.GameController.movePlayer(player, tileTo);
                 
                 finish = Q.GameState.currentMovementPath.length === Q.GameState.currentMovementNum + 1;
@@ -183,7 +208,7 @@ Quintus.GameControl = function(Q) {
                 let tile = {
                     loc: [tileData.x, tileData.y],
                     type: tileData.type,
-                    move: tileData.move
+                    dirs: tileData.dirs
                 };
                 map.tiles.push(tile);
                 Q.MapController.addToGrid(tileData.x, tileData.y, 2, 2, grid, tile);
@@ -291,6 +316,7 @@ Quintus.GameControl = function(Q) {
                         }
                     }
                 }
+                
                 //Dir IDX Positions - [[-2, -2], [-1, -2], [0, -2], [1, -2], [2, -2], [2, -1], [2, 0], [2, 1], [2, 2], [1, 2], [0, 2], [-1, 2], [-2, 2], [-2, 1], [-2, 0], [-2, -1]]
                 //Dir IDXS - 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15
                 
@@ -311,7 +337,7 @@ Quintus.GameControl = function(Q) {
                  * 12  11  10  9   8
                  */
                 
-                tile.move.dir = dirObj;
+                tile.dir = dirObj;
                 
                 
                 
@@ -358,7 +384,7 @@ Quintus.GameControl = function(Q) {
             Q.clearStage(1);
             this.dice = [];
             for(let i = 0; i < num; i++){
-                this.dice.push(Q.stage(0).insert(new Q.Die({x: player.p.x, y: player.p.y - Q.c.tileH})));
+                this.dice.push(Q.stage(0).insert(new Q.Die({x: player.p.x, y: player.p.y - Q.c.tileH * 2})));
             }
             if(Q.isActiveUser()){
                 Q.stage(0).on("pressedInput", this.dice[0], "stopDie");
@@ -472,13 +498,15 @@ Quintus.GameControl = function(Q) {
             for(let i = 0; i < data.users.length; i++){
                 players.push({
                     playerId: data.users[i].id,
-                    loc: mainTile.loc,
+                    loc: [mainTile.loc[0], mainTile.loc[1] - 2],
                     money: data.mapData.modes[data.settings.mode].startMoney,
                     netValue: data.mapData.modes[data.settings.mode].startMoney,
                     color: data.users[i].color,
                     shops: [],
                     items: [],
-                    setPieces: {},
+                    setPieces: {
+                        Peanut: 1
+                    },
                     stocks: [],
                     investments: [],
                     rank: 1,
