@@ -35,6 +35,17 @@ Quintus.Game = function(Q) {
 
 
             stage.on("step", function(){
+                if(Q.inputs["open-sets-menu"]){
+                    if(Q.stage(2).setMenu){ 
+                        Q.stage(2).setMenu.destroy();
+                        Q.stage(2).setMenu = false;
+                    } else {
+                        Q.stage(2).setMenu = Q.stage(2).insert(new Q.SetsMenu({player: Q.GameState.turnOrder[0]}));
+                    }
+                    
+                    Q.inputs["open-sets-menu"] = false;
+                }
+                
                 if(!Q.isActiveUser()) return;
                 if(Q.inputs["confirm"]){
                     Q.socket.emit('inputted', {input: "confirm"});

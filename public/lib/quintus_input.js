@@ -69,7 +69,7 @@ Quintus.Input = function(Q) {
     A: 'cycle-left',
     S: 'back',
     D: 'cycle-right',
-    Q: 'use-item',
+    Q: 'open-sets-menu',
     SHIFT: 'run',
     
     ONE: 'item-hk-1',
