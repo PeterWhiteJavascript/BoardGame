@@ -187,6 +187,7 @@ Quintus.Objects = function(Q) {
                 Q.processInputResult({func: "stopDieAndAllowMovement", props:{move: Q.GameState.currentMovementNum}});
             } else if(input === "back"){
                 Q.stage(0).off("pressedInput", this, "stopDie");
+                this.removeDie();
                 Q.processInputResult({func: "removeDiceAndBackToPTM", props:{num: 0}});
             }
         },
@@ -472,50 +473,134 @@ Quintus.Objects = function(Q) {
             toHover.children[0].p.fill = "gold";
         }
     });
-    
-    Q.GameObject.extend("textProcessor",{
-        evaluateStringConditional:function(vr, op, vl){
-            switch(op){
-                case "==": return vr == vl;
-                case "!=": return vr != vl;
-                case ">": return vr > vl;
-                case "<": return vr < vl;
-                case ">=": return vr >= vl;
-                case "<=": return vr <= vl;
-                case "set": return vl ? vr : !vr;
-            }
-        },
-        getDeepValue:function(obj, path){
-            for (var i=0, path=path.split('.'), len=path.length; i<len; i++){
-                obj = obj[path[i]];
-            };
-            return obj;
-        },
-        //Takes a string and evaluates anything within {} and then returns a new string
-        replaceText:function(text){
-            //Loop through each {}
-            while(typeof text === "string" && text.indexOf("{") !== -1){
-                text = text.replace(/\{(.*?)\}/,function(match, p1, p2, p3, offset, string){
-                    return Q.TextProcessor.getVarValue(p1);
-                });
-            }
-            return text;
-           
-        },
-        getVarValue:function(text){
-            var newText;
-            var category = text[0];
-            var prop = text.slice(text.indexOf("@")+1,text.length);
-            switch(category){
-                //{w@worldVariable}
-                case "w":
-                    newText = Q.DataController.currentWorld[prop];
-                    break;
-            }
+    //Contains the ui box that shows details about the tile such as value, shop prices, etc...
+    Q.GameObject.extend("TileDetails", {
+        init: function(p){
+            let boxWidth = 300;
+            let boxHeight = 220;
+            let stage = p.stage;
+            let insertTo = p.insertTo || stage;
             
-            return newText;
+            let shopStatusBox = this.shopStatusBox = insertTo.insert(new Q.StandardMenu({x: p.x, y: p.y, w: boxWidth, h: boxHeight, radius: 0}));
+            let shopIconAndRankCont = shopStatusBox.insert(new Q.UI.Container({x: 10, y:10, w: shopStatusBox.p.w / 2 - 10, h: shopStatusBox.p.h - 20, cx:0, cy:0}));
+
+            let shopRankContainer = shopIconAndRankCont.insert(new Q.UI.Container({x: shopIconAndRankCont.p.w / 2, y:70, w:shopIconAndRankCont.p.w - 20, h: 30, fill: "gold"}));
+            shopRankContainer.insertStars = function(rank){
+                this.children.forEach((star) => {star.destroy(); });
+                let space = 20;
+                for(let i = 0; i < rank; i++){
+                    this.insert(new Q.UI.Text({label: "*", x: i * space - (((rank - 1 ) / 2) * space), y: -shopRankContainer.p.h / 4}));
+                }
+            };
+
+            let shopBackground = shopIconAndRankCont.insert(new Q.UI.Container({cx: 0, cy: 0, x: 10, y: 90, fill: "#222", w:shopIconAndRankCont.p.w - 20, h: 90 }));
+            let shopIcon = shopIconAndRankCont.insert(new Q.Sprite({x: shopIconAndRankCont.p.w / 2, y: 130, w: 64, h: 64}));
+
+            let shopTextCont = shopStatusBox.insert(new Q.UI.Container({x: shopStatusBox.p.w / 2, y:10, w: shopStatusBox.p.w / 2 - 10, h: shopStatusBox.p.h - 20, cx:0, cy:0}));
+            let shopName = shopTextCont.insert(new Q.StandardText({x: 0, y:0, label: " ", align: "center", size: 24, cx: 0, cy:0, w: 1000, h: 1000}));
+
+            let valueCont = shopTextCont.insert(new Q.SmallText({x:shopTextCont.p.w / 2, y: 40, label: "Shop value"}));
+            let valueText = shopTextCont.insert(new Q.BGText({x: 10, y: 65, w: shopStatusBox.p.w / 2 - 20, h: 25, textP: {textClass: "StandardText", label: " ", x: shopStatusBox.p.w / 2 - 30, y: 3, color: "#EEE"}}));
+
+            let pricesCont = shopTextCont.insert(new Q.SmallText({x: shopTextCont.p.w / 2, y: 95, label: "Shop prices"}));
+            let pricesText = shopTextCont.insert(new Q.BGText({x: 10, y: 120, w: shopStatusBox.p.w / 2 - 20, h: 25, textP: {textClass: "StandardText", label: " ", x: shopStatusBox.p.w / 2 - 30, y: 3, color: "#EEE"}}));
+
+            let capitalCont = shopTextCont.insert(new Q.SmallText({x: shopTextCont.p.w / 2, y: 150, label: "Max. capital"}));
+            let capitalText = shopTextCont.insert(new Q.BGText({x: 10, y: 175, w: shopStatusBox.p.w / 2 - 20, h: 25, textP: {textClass: "StandardText", label: " ", x: shopStatusBox.p.w / 2 - 30, y: 3, color: "#EEE"}}));
+
+            let districtCont = shopStatusBox.insert(new Q.BGText({x: - 10, y: -25, w: boxWidth + 20, h: 30, fill: "#AAA", textP: {textClass: "StandardText", label: " ", x: boxWidth, y: 5, color: "#111"}}));
+
+            let bottomDecoration = shopStatusBox.insert(new Q.UI.Container({cx: 0, cy: 0, x: -5, y: boxHeight - 2, w: boxWidth + 10, h: 5,  fill: "#AAA", radius: 3}));
+            
+            stage.hoverShop = function(shop){
+                if(!shop){
+                    shopStatusBox.hide();
+                } else {
+                    shopStatusBox.show();
+                    switch(shop.type){
+                        case "main":
+                            shopTextCont.hide();
+                            shopRankContainer.hide();
+
+                            districtCont.p.fill = "#AAA";
+                            districtCont.text.p.label = "Home Base";
+
+                            shopIcon.p.sheet = "home-base-1";
+                            break;
+                        case "shop":
+                            shopTextCont.show();
+                            shopRankContainer.show();
+
+                            districtCont.p.fill = Q.GameState.map.data.districts[shop.district].color;
+                            districtCont.text.p.label = "District " + (shop.district + 1);
+
+                            shopName.p.label = shop.name;
+                            shopRankContainer.insertStars(shop.rank);
+                            if(shop.ownedBy){
+                                shopIcon.p.sheet = "tile-structure-" + shop.rank;
+                                shopBackground.p.fill = shop.ownedBy.color;
+                            } else {
+                                shopIcon.p.sheet = "shop-for-sale-signpost";
+                                shopBackground.p.fill = "#222";
+                            }
+
+                            valueText.text.p.label = shop.value + " G";
+                            pricesText.text.p.label = shop.cost + " G";
+                            capitalText.text.p.label = shop.maxCapital + " G";
+                            break;
+                        case "vendor":
+                            shopTextCont.hide();
+                            shopRankContainer.hide();
+
+                            districtCont.p.fill = "#AAA";
+                            districtCont.text.p.label = shop.itemName + " Vendor";
+
+                            shopIcon.p.sheet = (shop.itemName.toLowerCase()) + "-vendor";
+                            break;
+                    }
+                }
+            };
+            stage.hoverShop(Q.MapController.getTileAt(p.shopLoc));
         }
     });
+    
+    Q.UI.Container.extend("NumberDigit", {
+        init: function(p){
+            this._super(p, {
+                w: 40,
+                h: 60,
+                border: 1,
+                fill: "white"
+            });
+            this.on("inserted");
+            this.on("selected");
+        },
+        selected: function(){
+            this.container.p.menuButtons.forEach((button) => {button[0].p.fill = "white";});
+            this.p.fill = "red";
+        },
+        changeLabel: function(label){
+            this.p.textNumber.p.label = label + "";
+        },
+        inserted: function(){
+            this.p.textNumber = this.insert(new Q.UI.Text({size:20, label: this.p.number + "", y: -8}));
+        }
+    });
+    Q.UI.Container.extend("NumberCycler", {
+        init: function(p){
+            this._super(p, {
+            });
+            this.on("inserted");
+        },
+        inserted: function(){
+            this.p.menuButtons = [];
+            let space = 40;
+            for(let i = 0; i < this.p.digits; i++){
+                this.p.menuButtons.push([this.insert(new Q.NumberDigit({x: i * space - (((this.p.digits - 1 ) / 2) * space), y: 0, number: 0}))]);
+            }
+        }
+    });
+    
     Q.scene("dialogue", function(stage){
         let dialogueBox = stage.insert(new Q.StandardMenu({x: Q.width / 2 - 350, y:Q.height - 210, w: 700, h: 200}));
         let textArea = dialogueBox.insert(new Q.UI.Container({x:10, y:10, cx:0, cy:0, w:490, h:180}));
@@ -534,7 +619,6 @@ Quintus.Objects = function(Q) {
             if(!item) return Q.MenuController.returnToGame();
             
             if(textArea.p.text) textArea.p.text.destroy();
-            item = Q.TextProcessor.replaceText(item);
             textArea.p.text = textArea.insert(new Q.ScrollingText({label:item}));
             textArea.p.text.on("doneScrolling", processDialogue);
             Q.MenuController.currentCont = textArea.p.text;
@@ -548,15 +632,35 @@ Quintus.Objects = function(Q) {
     });
     
     Q.scene("menu", function(stage){
+        stage.options.selected = stage.options.selected || [0, 0];
         let menu = stage.options.menu;
         let menuBox = stage.insert(new Q.UI.Container({x: 50, y:50, w: 195, h: menu.options.length * 40 + 15 , cx:0, cy:0, fill: Q.OptionsController.options.menuColor, opacity:0.8, border:1}));
         let optionsArea = menuBox.insert(new Q.MenuButtonContainer({x:5, y:5, cx:0, cy:0, w:menuBox.p.w - 10, h:menuBox.p.h - 10, fill: Q.OptionsController.options.menuColor}));
         Q.MenuController.currentCont = optionsArea;
         Q.MenuController.currentCont.displayOptions(menu.options);
-        
-        let selected = stage.options.selected || 0;
-        Q.MenuController.currentCont.p.menuButtons[0][selected].hover();
+        Q.MenuController.currentCont.p.menuButtons[stage.options.selected[1]][stage.options.selected[0]].hover();
     });
+    
+    Q.scene("investMenu", function(stage){
+        let boxWidth = 300;
+        let boxHeight = 220;
+        let shop = stage.options.shop;
+        let digits = stage.options.cycler;
+        let currentItem = stage.options.currentItem || [digits - 1, 0];
+        let menuBox = stage.insert(new Q.StandardMenu({x: Q.width / 2 - 350, y: Q.height / 2 - 250, w: 700, h: 500}));
+        menuBox.insert(new Q.StandardText({x: menuBox.p.w / 2, y: 30, label: "Invest in " + shop.name, align: "middle"}));
+        stage.numberCycler = menuBox.insert(new Q.NumberCycler({digits: digits, x: menuBox.p.w / 2, y: 100}));
+        stage.numberCycler.p.menuButtons[currentItem[0]][currentItem[1]].selected();
+        Q.MenuController.currentCont = stage.numberCycler;
+        let tileDetails = new Q.TileDetails({insertTo: menuBox, stage: stage, x:20, y: menuBox.p.h / 2 - 40, shopLoc: shop.loc});
+        
+        //TODO: create an arrow pointing to the newTileDeatils
+        //TODO: Also update the newTileDetails with the new values that are going to happen by the number cycler.
+        
+        
+        let newTileDetails = new Q.TileDetails({insertTo: menuBox, stage: stage, x:menuBox.p.w - boxWidth - 20, y: menuBox.p.h / 2 - 40, shopLoc: shop.loc});
+    });
+    
     
     Q.GameObject.extend("optionsController",{
         toggleBoolOpt:function(opt){

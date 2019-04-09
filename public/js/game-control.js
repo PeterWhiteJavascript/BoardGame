@@ -70,11 +70,11 @@ Quintus.GameControl = function(Q) {
                             Q.GameController.changePlayerRank(player, 1);
                             Q.GameController.addBoardAction("prev", "changePlayerRank", [player, -1]);
 
-                            Q.MenuController.turnOffDialogueInputs();
+                            Q.MenuController.turnOffStandardInputs();
                             finishCallback();
                         },
                         noExchange: () => {
-                            Q.MenuController.turnOffDialogueInputs();
+                            Q.MenuController.turnOffStandardInputs();
                             finishCallback();
                         }
                     });
@@ -98,11 +98,11 @@ Quintus.GameControl = function(Q) {
                             Q.GameController.changeSetItemQuantity(player, tile.itemName, 1);
                             Q.GameController.addBoardAction("prev", "changeSetItemQuantity", [player, tile.itemName, -1]);
                             
-                            Q.MenuController.turnOffDialogueInputs();
+                            Q.MenuController.turnOffStandardInputs();
                             finishCallback();
                         },
                         confirmFalse: () => {
-                            Q.MenuController.turnOffDialogueInputs();
+                            Q.MenuController.turnOffStandardInputs();
                             finishCallback();
                         }
                     });
@@ -183,15 +183,16 @@ Quintus.GameControl = function(Q) {
                 }
             } 
         },
-        generateShopValue: function(value, rank){
-            return value * rank;
+        generateShopValue: function(value, rank, investedCapital){
+            return value * rank + investedCapital;
         },
         generateShopCost: function(value, rank, investedCapital, numberOfShopsInDistrict){
             // 20 - 25 - 30 - 35 - 40
-            return ~~(value * (0.2 + (rank - 1) * 0.05 + numberOfShopsInDistrict * 0.05)) + investedCapital;
+            return ~~((value + investedCapital) * (0.2 + (rank - 1) * 0.05 + numberOfShopsInDistrict * 0.05));
         },
-        generateShopMaxCapital: function(value, rank, investedCapital, numberOfShopsInDistrict){
-            return ~~(value + (value / 2 * rank * numberOfShopsInDistrict)) - investedCapital;
+        //Initial value plus half of an initial value for every rank. Minus the capital that has already been invested.
+        generateShopMaxCapital: function(value, rank, investedCapital){
+            return ~~(value + (value / 2 * rank)) - investedCapital;
         },
         //Pass the map data and return the fully generated map inside a tile w*h tile grid.
         generateMap: function(mapData, settings){
@@ -218,12 +219,11 @@ Quintus.GameControl = function(Q) {
                         tile.initialValue = tileData.value;
                         tile.rank = tileData.rank;
                         tile.investedCapital = 0;
-                        tile.value = Q.MapController.generateShopValue(tile.initialValue, tile.rank);
-                        tile.cost = Q.MapController.generateShopCost(tile.initialValue, tile.rank, tile.investedCapital, 1);
-                        tile.maxCapital = Q.MapController.generateShopMaxCapital(tile.initialValue, tile.rank, tile.investedCapital, 1);
-                        tile.capitalInvested = 0;
                         tile.name = tileData.name;
                         tile.district = tileData.district;
+                        tile.value = Q.MapController.generateShopValue(tile.initialValue, tile.rank, tile.investedCapital);
+                        tile.cost = Q.MapController.generateShopCost(tile.initialValue, tile.rank, tile.investedCapital, 1);
+                        tile.maxCapital = Q.MapController.generateShopMaxCapital(tile.initialValue, tile.rank, tile.investedCapital, 1);
                         map.districts[tile.district].push(tile);
                         break;
                     case "main":
@@ -344,6 +344,92 @@ Quintus.GameControl = function(Q) {
             }
             map.grid = grid;
             return map;
+        }
+    });
+    Q.Sprite.extend("ShopSelector", {
+        init: function(p){
+            //TODO: pass this xy value it.
+            let pos = Q.getXY(Q.GameState.turnOrder[0].loc);
+            this._super(p,{
+                x: pos.x + Q.c.tileW / 2,
+                y: pos.y + Q.c.tileH / 2,
+                w: Q.c.tileW * 3,
+                h: Q.c.tileH * 2
+            });
+            this.acceptedInput = false;
+            this.animating = false;
+            this.timerSet = false;
+            this.atTile = true;
+            
+            this.add("tween");
+            this.on("inserted");
+            this.on("moved");
+            this.on("step");
+        },
+        inserted: function(){
+            this.sprite = this.stage.insert(new Q.Sprite({sheet:"selector-sprite", frame:1, x: this.p.x, y: this.p.y}));
+            this.on("step", function(){
+                this.sprite.p.x = this.p.x;
+                this.sprite.p.y = this.p.y;
+            });
+        },
+        tweenToTile: function(){
+            let tile = this.shopOn;
+            if(tile){
+                let pos = Q.getXY(tile.loc);
+                this.animate(
+                    {x: pos.x + Q.c.tileW / 2, y: pos.y + Q.c.tileH / 2}, 0.1, Q.Easing.Quadratic.InOut, 
+                        {
+                        callback: function(){
+                            this.animating = false; 
+                            this.atTile = true;
+                            this.hoverShop();
+                        }
+                    }
+                );
+                this.animating = true;
+            }
+        },
+        dehoverShop: function(){
+            if(this.sprite){
+                this.sprite.p.frame = 0;
+            }
+        },
+        hoverShop: function(){
+            if(this.sprite){
+                this.sprite.p.frame = 1;
+            }
+        },
+        moved: function(coord){
+            let speed = 1.5;
+            this.p.x = this.p.x + coord[0] * (4 * speed);
+            this.p.y = this.p.y + coord[1] * (3 * speed);
+            this.acceptedInput = true;
+            this.atTile = false;
+            this.dehoverShop();
+            let loc = Q.getLoc(this.p.x - Q.c.tileW / 2, this.p.y - Q.c.tileH / 4);
+            if(Q.locInBounds(loc, Q.GameState.map.data.map.w, Q.GameState.map.data.map.h)){
+                this.shopOn = Q.MapController.getTileAt(loc);
+                if(!Q.isServer()){
+                    Q.stage(2).hoverShop(this.shopOn);
+                }
+            } else {
+                this.shopOn = false;
+                if(!Q.isServer()){
+                    Q.stage(2).hoverShop(this.shopOn);
+                }
+            }
+        },
+        step: function(){
+            if(this.acceptedInput && this.animating){
+                this.stop();
+                this.animating = false;
+                this.atTile = false;
+            }
+            if(!this.acceptedInput && !this.animating && !this.atTile){
+                this.tweenToTile();
+            }
+            this.acceptedInput = false;
         }
     });
     
@@ -537,20 +623,22 @@ Quintus.GameControl = function(Q) {
                     
             let player = Q.GameState.turnOrder[0];
             player.turn = true;
-            Q.MenuController.makeMenu("playerTurnMenu", 0);
+            Q.MenuController.makeMenu("playerTurnMenu", [0, 0]);
             if(!Q.isServer()){
                 if(Q.isActiveUser()){
                     Q.stage(0).insert(new Q.TurnAnimation());
+                    Q.inputs["confirm"] = false;
                 }   
             }
         },
         buyShop: function(player, shop){
             Q.GameController.changePlayerMoney(player, -shop.value);
-            if(!Q.isServer()){
-                shop.sprite.updateTile(player.color);
-            }
             shop.ownedBy = player;
             Q.GameController.adjustShopValues(player, shop);
+            if(!Q.isServer()){
+                shop.sprite.updateTile(player.color);
+                Q.stage(2).hoverShop(shop);
+            }
         },
         buyOutShop: function(player, shop){
             Q.GameController.changePlayerMoney(shop.ownedBy, shop.value * 3);
@@ -570,12 +658,24 @@ Quintus.GameControl = function(Q) {
             let shopsOwned = district.filter((shop) => {return shop.ownedBy === player;});
             if(shopsOwned.length > 1){
                 shopsOwned.forEach((shop) => {
-                    shop.cost = Q.MapController.generateShopCost(shop.value, shop.rank, shop.investedCapital, shopsOwned.length);
-                    shop.maxCapital = Q.MapController.generateShopMaxCapital(shop.value, shop.rank, shop.investedCapital, shopsOwned.length);
+                    shop.cost = Q.MapController.generateShopCost(shop.initialValue, shop.rank, shop.investedCapital, shopsOwned.length);
+                    shop.maxCapital = Q.MapController.generateShopMaxCapital(shop.initialValue, shop.rank, shop.investedCapital, shopsOwned.length);
                     if(!Q.isServer()){
                         shop.sprite.updateTile(player.color);
                     }
                 });
+            }
+        },
+        //Updates the shop to the current values.
+        updateShopValues: function(shop){
+            let player = shop.ownedBy;
+            let district = Q.GameState.map.districts[shop.district];
+            let shopsOwned = player ? district.filter((shop) => {return shop.ownedBy === player;}).length : 1;
+            shop.value = Q.MapController.generateShopValue(shop.initialValue, shop.rank, shop.investedCapital);
+            shop.cost = Q.MapController.generateShopCost(shop.initialValue, shop.rank, shop.investedCapital, shopsOwned);
+            if(!Q.isServer()){
+                shop.sprite.updateTile(player.color);
+                Q.stage(2).hoverShop(shop);
             }
         }
     });
@@ -588,22 +688,153 @@ Quintus.GameControl = function(Q) {
             Q.MenuController.initializeMenu(Q.GameState.inputState);
             if(!Q.isServer()){
                 Q.stageScene("dialogue", 1, {dialogue: Q.GameState.inputState});
-                if(Q.isActiveUser()){
-                    Q.MenuController.turnOnDialogueInputs();
-                }
+                Q.MenuController.turnOnStandardInputs();
+                
+            }
+        },
+        makeCustomMenu: function(menu, props){
+            Q.GameState.inputState = Q.MenuController.inputStates[menu];
+            Q.GameState.inputState.shop = props.shop;
+            //These are all custom menus,so do all of the "makeMenu" code here.
+            switch(menu){
+                case "investMenu":
+                    Q.MenuController.initializeNumberCycler(props);
+                    if(!Q.isServer()){
+                        Q.stageScene("investMenu", 1, props);
+                        Q.MenuController.turnOnNumberCyclerInputs();
+                    }
+                    //Turn on adjust potential shop values, prices, and max capital when increasing the cycler.
+                    
+                    
+                    break;
+                case "upgradeMenu":
+                    
+                    break;
+                case "auctionMenu":
+                    
+                    break;
             }
         },
         makeMenu: function(state, selected){
             Q.GameState.inputState =  Q.MenuController.inputStates[state];
-            Q.MenuController.initializeMenu(Q.GameState.inputState);
+            Q.MenuController.initializeMenu(Q.GameState.inputState, selected);
             if(!Q.isServer()){
-                Q.stageScene("menu", 1, {menu: Q.GameState.inputState, selected: selected || 0});
-                if(Q.isActiveUser()){
-                    Q.MenuController.turnOnDialogueInputs();
-                }   
+                Q.stageScene("menu", 1, {menu: Q.GameState.inputState, selected: selected || [0, 0]});
+                Q.MenuController.turnOnStandardInputs();
+                   
             }
         },
-        turnOffDialogueInputs: function(){
+        makeMoveShopSelector: function(confirmFunc, backFunc){
+            let goBack, finish;
+            switch(confirmFunc){
+                case "invest":
+                    finish = function(shop){
+                        if(!shop) return;//TODO: play sound???
+                        Q.MenuController.turnOffMoveSelectShopInputs();
+                        Q.MenuController.makeCustomMenu("investMenu", {shop: shop, cycler: 6});
+                        return {
+                            func: "turnOffMoveSelectShopInputs", 
+                            next: {
+                                menu: "investMenu",
+                                type: "custom"
+                            }
+                        };
+                    };
+                    break;
+                case "upgrade":
+                    finish = function(shop){
+                        if(!shop) return;//TODO: play sound???
+                        Q.MenuController.turnOffMoveSelectShopInputs();
+                        Q.MenuController.makeCustomMenu("upgradeMenu", shop);
+                        return {
+                            func: "turnOffMoveSelectShopInputs", 
+                            next: {
+                                menu: "upgradeMenu",
+                                type: "custom"
+                            }
+                        };
+                    };
+                    break;
+                case "auction":
+                    finish = function(shop){
+                        if(!shop) return;//TODO: play sound???
+                        Q.MenuController.turnOffMoveSelectShopInputs();
+                        Q.MenuController.makeCustomMenu("auctionMenu", shop);
+                        return {
+                            func: "turnOffMoveSelectShopInputs", 
+                            next: {
+                                menu: "auctionMenu",
+                                type: "custom"
+                            }
+                        };
+                    };
+                    break;
+            }
+            switch(backFunc){
+                case "toShopsMenu":
+                    goBack = function(){
+                        Q.MenuController.turnOffMoveSelectShopInputs();
+                        Q.MenuController.makeMenu("shopsMenu", 0);
+                        return {
+                            func: "turnOffMoveSelectShopInputs", 
+                            next: {
+                                menu: "shopsMenu",
+                                type: "normal"
+                            }
+                        };
+                    };
+                    break;
+            }
+            Q.GameState.inputState = {
+                func: "moveShopSelector", 
+                selectorPos: Q.getXY(Q.GameState.turnOrder[0]),
+                goBack: goBack,
+                finish: finish
+            };
+            Q.GameState.shopSelector = new Q.ShopSelector();
+            Q.MenuController.turnOnMoveSelectShopInputs();
+            
+        },
+        runDeepFunction: function(props){
+            console.log(props)
+            let obj = Q.getDeepValue(Q.MenuController.inputStates, props);
+        },
+        turnOffMoveSelectShopInputs: function(){
+            if(!Q.isServer()){
+                Q.preventMultipleInputs = true;
+                Q.GameState.shopSelector.sprite.destroy();
+                if(Q.isActiveUser()){
+                    Q.stage(0).off("pressedInput", Q.MenuController, "processShopSelectorInput");
+                }
+            }
+        },
+        turnOnMoveSelectShopInputs: function(){
+            if(!Q.isServer()){
+                Q.preventMultipleInputs = false;
+                Q.stage(0).insert(Q.GameState.shopSelector);
+                if(Q.isActiveUser()){
+                    Q.stage(0).on("pressedInput", Q.MenuController, "processShopSelectorInput");
+                    Q.GameState.shopSelector.on("destroyed", function(){
+                        Q.stage(0).off("pressedInput", Q.MenuController, "processShopSelectorInput");
+                    });
+                }
+            }
+        },
+        turnOffNumberCyclerInputs: function(){
+            if(!Q.isServer()){
+                Q.clearStage(1);
+                if(Q.isActiveUser()){
+                    Q.stage(0).off("pressedInput", Q.MenuController, "processNumberCyclerInput");
+                }
+            }
+        },
+        turnOnNumberCyclerInputs: function(){
+            if(Q.isActiveUser()){
+                Q.stage(0).on("pressedInput", Q.MenuController, "processNumberCyclerInput");
+                Q.stage(1).on("destroyed", function(){Q.stage(0).off("pressedInput", Q.MenuController, "processNumberCyclerInput");});
+            }
+        },
+        turnOffStandardInputs: function(){
             if(!Q.isServer()){
                 Q.clearStage(1);
                 if(Q.isActiveUser()){
@@ -611,13 +842,53 @@ Quintus.GameControl = function(Q) {
                 }
             }
         },
-        turnOnDialogueInputs: function(){
+        turnOnStandardInputs: function(){
             if(Q.isActiveUser()){
                 Q.stage(0).on("pressedInput", Q.MenuController, "processInput");
                 Q.stage(1).on("destroyed", function(){Q.stage(0).off("pressedInput", Q.MenuController, "processInput");});
             }
         },
         inputStates: {
+            investMenu: {
+                func: "controlNumberCycler",
+                cycler: 6,
+                confirm: () => {
+                    let investAmount = Q.MenuController.getValueFromNumberCycler();
+                    //If the invest amount is greater than allowed, set the amount to the allowed amount.
+                    if(investAmount > Q.GameState.inputState.shop.maxCapital){
+                        Q.MenuController.setNumberCyclerValue(Q.GameState.inputState.shop.maxCapital);
+                    }
+                    //Otherwise, invest that amount into the shop.
+                    else {
+                        if(investAmount){
+                            Q.GameState.inputState.shop.maxCapital -= investAmount;
+                            Q.GameState.inputState.shop.investedCapital += investAmount;
+                            Q.GameController.updateShopValues(Q.GameState.inputState.shop);
+                            Q.GameController.changePlayerMoney(Q.GameState.turnOrder[0], -investAmount);
+                        }
+                        if(!Q.isServer()){
+                            Q.clearStage(1);
+                        }
+                        Q.MenuController.makeMenu("playerTurnMenu", [0, 0]);
+                        
+                        //ToDo: if the investAmount is > 0, prevent the user from investing anymore.
+                        //TODo: prevent the user from investing in shops that are not owned by them. (do this elsewhere).
+                        //TODo: prevent the user from investing more money than they have.
+                    }
+                },
+                goBack: () => {
+                    if(!Q.isServer()){
+                        Q.clearStage(1);
+                    }
+                    Q.MenuController.inputStates.shopsMenu.cursorSelectShop("invest", "toShopsMenu");
+                }
+            },
+            upgradeMenu: {
+                
+            },
+            auctionMenu: {
+                
+            },  
             askExchangeSets: {
                 func: "navigateMenu",
                 text: ["Looks like you've got a set! \nWhich one would you like to exchange?"]
@@ -648,6 +919,8 @@ Quintus.GameControl = function(Q) {
                     return Q.GameState.inputState;
                 },
                 showShopsMenu: () => {
+                    Q.MenuController.makeMenu("shopsMenu");
+                    
                     
                 },
                 viewBoard: () => {
@@ -658,6 +931,30 @@ Quintus.GameControl = function(Q) {
                 },
                 showOptions: () => {
                     
+                }
+            },
+            shopsMenu: {
+                func: "navigateMenu",
+                options:[
+                    ["Invest", "cursorSelectShop", ["invest", "toShopsMenu"]],
+                    ["Upgrade", "cursorSelectShop", ["upgrade", "toShopsMenu"]],
+                    ["Auction", "cursorSelectShop", ["auction", "toShopsMenu"]]
+                ],
+                goBack: () => {
+                    Q.GameState.inputState = Q.MenuController.inputStates.playerTurnMenu;
+                    let selected = [0, 1];
+                    Q.MenuController.initializeMenu(Q.GameState.inputState, selected);
+                    if(!Q.isServer()){
+                        Q.stageScene("menu", 1, {menu: Q.GameState.inputState, selected: selected});
+                        Q.MenuController.turnOnStandardInputs();
+                    }
+                    return {func: "toPlayerTurnMainMenu", selected: selected};
+                },
+                //Gives the active player a cursor that they can move around the map to select a shop.
+                //What happens after selecting the shop is determined by the passed in type
+                cursorSelectShop: (finish, goBack) => {
+                    Q.MenuController.turnOffStandardInputs();
+                    Q.MenuController.makeMoveShopSelector(finish, goBack);
                 }
             },
             menuMovePlayer: {
@@ -679,7 +976,7 @@ Quintus.GameControl = function(Q) {
                 confirmFalse: () => {
                     let loc = Q.GameController.playerGoBackMove(Q.GameState.turnOrder[0].playerId);
                     Q.GameState.inputState = {func: "playerMovement"};
-                    Q.MenuController.turnOffDialogueInputs();
+                    Q.MenuController.turnOffStandardInputs();
                     if(!Q.isServer()){
                         Q.stage(0).on("pressedInput", Q.GameController, "localPlayerMovement");
                     }
@@ -699,9 +996,8 @@ Quintus.GameControl = function(Q) {
                     let player = Q.GameState.turnOrder[0];
                     let tileOn = Q.MapController.getTileAt(player.loc);
                     Q.GameController.buyShop(player, tileOn);
-                    if(!Q.isServer()){
-                        Q.MenuController.turnOffDialogueInputs();
-                    }
+                    Q.MenuController.turnOffStandardInputs();
+                    
                     Q.GameController.endTurn();
                     return {func: "buyShop", shopLoc: player.loc};
                 },
@@ -722,9 +1018,8 @@ Quintus.GameControl = function(Q) {
                     let tileOn = Q.MapController.getTileAt(player.loc);
                     let ownedBy = tileOn.ownedBy;
                     Q.GameController.buyOutShop(player, tileOn);
-                    if(!Q.isServer()){
-                        Q.MenuController.turnOffDialogueInputs();
-                    }
+                    Q.MenuController.turnOffStandardInputs();
+                    
                     Q.GameController.endTurn();
                     return {func: "buyOutShop", shopLoc: player.loc};
                 },
@@ -734,8 +1029,16 @@ Quintus.GameControl = function(Q) {
                 }
             }
         },
-        initializeMenu: function(data){
-            this.currentItem = [0, 0];
+        initializeNumberCycler: function(data){
+            this.currentItem = data.currentItem || [data.cycler - 1, 0];
+            this.itemGrid = [[]];
+            for(let i = 0 ; i < data.cycler; i++){
+                this.itemGrid[0].push([0, "confirm"]);
+            }
+        },
+        initializeMenu: function(data, currentItem){
+            if(this.currentCont) this.currentCont = false;
+            this.currentItem = currentItem || [0, 0];
             this.itemGrid = [];
             for(let i = 0 ; i < data.options.length; i++){
                 this.itemGrid.push([data.options[i]]);
@@ -745,6 +1048,13 @@ Quintus.GameControl = function(Q) {
             let option = this.itemGrid[this.currentItem[1]][this.currentItem[0]];
             option[2] = option[2] !== undefined ? option[2] : [];
             return Q.GameState.inputState[option[1]](...option[2]);
+        },
+        pressBackInMenu: function(){
+            if(Q.GameState.inputState.goBack){
+                Q.GameState.inputState.goBack();
+                return {func: "goBack"};
+            }
+            return false;
         },
         keepInRange: function(coord){
             let currentItem = this.currentItem;
@@ -768,6 +1078,52 @@ Quintus.GameControl = function(Q) {
             if(currentItem[1] < 0) return [currentItem[0], maxY];
             return currentItem;
         },
+        setNumberCyclerValue: function(value){
+            let itemGrid = this.itemGrid;
+            let strValue = value.toString();
+            let dif = itemGrid[0].length - strValue.length;
+            for(let i = itemGrid[0].length - 1; i >= 0; i--){
+                let value = strValue[i - dif] || 0;
+                itemGrid[0][i][0] = parseInt(value);
+                if(this.currentCont){
+                    this.currentCont.p.menuButtons[i][0].changeLabel(itemGrid[0][i][0]);
+                }
+            }
+        },
+        getValueFromNumberCycler: function(){
+            let itemGrid = this.itemGrid;
+            let value = "";
+            for(let i = 0; i < itemGrid[0].length; i++){
+                value += itemGrid[0][i][0];
+            }
+            return parseInt(value);
+        },
+        adjustNumberCyclerPosition: function(coord){
+            let currentItem = this.currentItem;
+            let itemGrid = this.itemGrid;
+            //Move up/down
+            if(coord[1]){
+                itemGrid[currentItem[1]][currentItem[0]][0] += coord[1];
+                if(itemGrid[currentItem[1]][currentItem[0]][0] < 0) itemGrid[currentItem[1]][currentItem[0]][0] = 9;
+                else if(itemGrid[currentItem[1]][currentItem[0]][0] > 9) itemGrid[currentItem[1]][currentItem[0]][0] = 0;
+                if(this.currentCont){
+                    this.currentCont.p.menuButtons[this.currentItem[0]][this.currentItem[1]].changeLabel(itemGrid[currentItem[1]][currentItem[0]][0]);
+                }
+            } 
+            //Move left/right
+            else if(coord[0]){
+                do {
+                    currentItem = this.keepInRange(coord);
+                }
+                while(!itemGrid[currentItem[1]][currentItem[0]]);
+                this.currentItem = currentItem;
+                if(this.currentCont){
+                    this.currentCont.p.menuButtons[this.currentItem[0]][this.currentItem[1]].selected();
+                }
+            }
+            
+            return {item: this.currentItem, func: "controlNumberCycler"};
+        },
         adjustMenuPosition: function(coord){
             let currentItem = this.currentItem;
             let itemGrid = this.itemGrid;
@@ -782,9 +1138,35 @@ Quintus.GameControl = function(Q) {
             }
             return {item: this.currentItem, func: "navigateMenu"};
         },
+        processShopSelectorInput: function(input){
+            if(input === "confirm"){
+                return Q.GameState.inputState.finish(Q.MapController.getTileAt(Q.getLoc(Q.GameState.shopSelector.p.x, Q.GameState.shopSelector.p.y)));
+            } else if(input === "back"){
+                return Q.GameState.inputState.goBack();
+            } else {
+                Q.GameState.shopSelector.trigger("moved", Q.convertDirToCoord(input));
+            }
+        },
+        processNumberCyclerInput: function(input){
+            if(input === "confirm"){
+                return Q.MenuController.confirmMenuOption();
+            } else if(input === "back") { 
+                return Q.MenuController.pressBackInMenu();
+            } else if(input === "up"){
+               return {func: "controlNumberCycler", pos:this.adjustNumberCyclerPosition([0, 1])};
+            } else if(input === "down"){
+               return {func: "controlNumberCycler", pos:this.adjustNumberCyclerPosition([0, -1])};
+            } else if(input === "left"){
+               return {func: "controlNumberCycler", pos:this.adjustNumberCyclerPosition([-1, 0])};
+            } else if(input === "right"){
+               return {func: "controlNumberCycler", pos:this.adjustNumberCyclerPosition([1, 0])};
+            }
+        },
         processInput: function(input){
             if(input === "confirm"){
-               return this.confirmMenuOption();
+               return Q.MenuController.confirmMenuOption();
+            } else if(input === "back") { 
+                return Q.MenuController.pressBackInMenu();
             } else if(input === "up"){
                return {func: "navigateMenu", pos:this.adjustMenuPosition([0, -1])};
             } else if(input === "down"){

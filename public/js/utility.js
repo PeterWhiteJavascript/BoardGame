@@ -37,6 +37,18 @@ Quintus.Utility = function(Q) {
         }
         return dir;
     };
+    Q.getDeepValue = function(obj, path){
+        for (var i=0, path=path.split('.'), len=path.length; i<len; i++){
+            obj = obj[path[i]];
+        };
+        return obj;
+    };
+    Q.getLoc = function(x, y){
+        return [
+            ~~(x / Q.c.tileW),
+            ~~(y / Q.c.tileH)
+        ];
+    };
     Q.getXY = function(loc){
         return {x:loc[0] * Q.c.tileW + Q.c.tileW / 2  + loc[0] * Q.c.tileOffset,y:loc[1] * Q.c.tileH + Q.c.tileH / 2 + loc[1] * Q.c.tileOffset};
     };

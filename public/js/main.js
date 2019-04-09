@@ -44,7 +44,6 @@ Q.socket.on('connected', function (connectionData) {
             soundEnabled: false,
             soundVolume: 0.1
         };//GDATA.saveFiles["save-file1.json"].options;
-        Q.TextProcessor = new Q.textProcessor();
         
         Q.c = Q.assets["data/constants/data.json"];
         Q.setUpAnimations();
@@ -57,8 +56,14 @@ Q.socket.on('connected', function (connectionData) {
         //Anything that is shown client side will be correct, unless the user is trying to cheat.
         //Override any changes with these values just in case.
         Q.processInputResult = function(data){
-            let player, shop;
+            let player;
             switch(data.func){
+                case "turnOffShopInputs":
+                    
+                    break;
+                case "moveShopSelectorResult":
+                    console.log(data)
+                    break;
                 case "rollDie":
                     Q.GameState.currentMovementNum = data.props.roll;
                     Q.GameController.startRollingDie(1, Q.GameState.turnOrder[0].sprite);
@@ -92,24 +97,17 @@ Q.socket.on('connected', function (connectionData) {
                 //When going to the playerTurnMainMenu (also used when going back to it.)
                 case "toPlayerTurnMainMenu":
                     Q.GameState.inputState = Q.MenuController.inputStates.playerTurnMenu;
-                    let menuOptionSelected = data.props.num;
+                    let menuOptionSelected = data.props.selected;
                     //Q.GameState.inputState = Q.MenuController.inputStates.playerTurnMenu;
                     Q.stageScene("menu", 1, {menu: Q.GameState.inputState, selected: menuOptionSelected});
                     Q.MenuController.initializeMenu(Q.GameState.inputState);
-                    Q.MenuController.turnOnDialogueInputs();
+                    Q.MenuController.turnOnStandardInputs();
                     break;
                 //TODO: move the cursor up/down/whatever in the menu
                 case "navigateMenu":
-                    let func = data.func;
-                    if(func === "navigateMenu"){
-                        let pos = data.props.pos.item;
-                        Q.MenuController.currentItem = pos;
-                        Q.MenuController.currentCont.p.menuButtons[Q.MenuController.currentItem[1]][Q.MenuController.currentItem[0]].hover();
-                    } 
-                    //We're doing a menu function
-                    else {
-                        
-                    }
+                    let pos = data.props.pos.item;
+                    Q.MenuController.currentItem = pos;
+                    Q.MenuController.currentCont.p.menuButtons[Q.MenuController.currentItem[1]][Q.MenuController.currentItem[0]].hover();
                     break;
                 //If the player says yes to ending their move here.
                 case "playerConfirmMove":
@@ -136,6 +134,9 @@ Q.socket.on('connected', function (connectionData) {
                     Q.stage(2).hoverShop(Q.MapController.getTileAt(data.props.locTo));
                     
                     Q.clearStage(1);
+                    break;
+                case "goBackMenu":
+                    Q.GameState.inputState.goBack();
                     break;
             }
         };

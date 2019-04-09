@@ -136,6 +136,12 @@ io.on('connection', function (socket) {
         let props = {};
         //console.log(Q.GameState.inputState.func)
         switch(Q.GameState.inputState.func){
+            case "moveShopSelector":
+                props = Q.MenuController.processShopSelectorInput(data.input);
+                if(props && props.func){
+                    socket.broadcast.to(gameRoom).emit("inputResult", {key: data.input, playerId: user.id, func: props.func, props: props});
+                }
+                break;
             case "rollDie":
                 //Roll the die
                 if(data.input === "confirm"){
@@ -163,6 +169,10 @@ io.on('connection', function (socket) {
                         socket.emit("inputResult", {key: data.input, playerId: user.id, func: props.func, props: props});
                     }
                 }
+                break;
+            case "controlNumberCycler":
+                props = Q.MenuController.processNumberCyclerInput(data.input);
+                console.log(props); 
                 break;
             //When the player is moving after the has been rolled
             case "playerMovement":
