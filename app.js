@@ -172,7 +172,8 @@ io.on('connection', function (socket) {
                 break;
             case "controlNumberCycler":
                 props = Q.MenuController.processNumberCyclerInput(data.input);
-                console.log(props); 
+                //TODO: move the cycler
+                
                 break;
             //When the player is moving after the has been rolled
             case "playerMovement":

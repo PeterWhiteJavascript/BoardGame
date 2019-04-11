@@ -52,9 +52,7 @@ Q.socket.on('connected', function (connectionData) {
 
         });
         
-        //This is the actual result of user actions.
-        //Anything that is shown client side will be correct, unless the user is trying to cheat.
-        //Override any changes with these values just in case.
+        //This is the actual result of user actions, shown on all clients except the one who did the action
         Q.processInputResult = function(data){
             let player;
             switch(data.func){
@@ -98,10 +96,10 @@ Q.socket.on('connected', function (connectionData) {
                 case "toPlayerTurnMainMenu":
                     Q.GameState.inputState = Q.MenuController.inputStates.playerTurnMenu;
                     let menuOptionSelected = data.props.selected;
-                    //Q.GameState.inputState = Q.MenuController.inputStates.playerTurnMenu;
-                    Q.stageScene("menu", 1, {menu: Q.GameState.inputState, selected: menuOptionSelected});
                     Q.MenuController.initializeMenu(Q.GameState.inputState);
+                    Q.stageScene("menu", 1, {menu: Q.GameState.inputState, selected: menuOptionSelected, options: Q.MenuController.itemGrid});
                     Q.MenuController.turnOnStandardInputs();
+                    
                     break;
                 //TODO: move the cursor up/down/whatever in the menu
                 case "navigateMenu":

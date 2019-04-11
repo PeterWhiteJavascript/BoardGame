@@ -159,7 +159,7 @@ Quintus.GameControl = function(Q) {
                 
                 finish = Q.GameState.currentMovementPath.length === Q.GameState.currentMovementNum + 1;
                 if(!Q.isServer()){
-                    Q.stage(2).hoverShop(tileTo);
+                Q.GameController.tileDetails.displayShop(tileTo);
                 }
                 if(direction === "forward"){
                     if(Q.MapController.checkPassByTile(player, tileTo, finish)) return {loc: tileTo.loc};
@@ -183,12 +183,15 @@ Quintus.GameControl = function(Q) {
                 }
             } 
         },
+        getShopsOwnedInDistrict: function(shop){
+            return Q.GameState.map.districts[shop.district].filter((s) => {return shop.ownedBy === s.ownedBy;}).length;
+        },
         generateShopValue: function(value, rank, investedCapital){
             return value * rank + investedCapital;
         },
         generateShopCost: function(value, rank, investedCapital, numberOfShopsInDistrict){
             // 20 - 25 - 30 - 35 - 40
-            return ~~((value + investedCapital) * (0.2 + (rank - 1) * 0.05 + numberOfShopsInDistrict * 0.05));
+            return ~~((value * rank + investedCapital) * (0.2 + (rank - 1) * 0.05 + numberOfShopsInDistrict * 0.05));
         },
         //Initial value plus half of an initial value for every rank. Minus the capital that has already been invested.
         generateShopMaxCapital: function(value, rank, investedCapital){
@@ -349,7 +352,7 @@ Quintus.GameControl = function(Q) {
     Q.Sprite.extend("ShopSelector", {
         init: function(p){
             //TODO: pass this xy value it.
-            let pos = Q.getXY(Q.GameState.turnOrder[0].loc);
+            let pos = Q.getXY(p.pos || Q.GameState.turnOrder[0].loc);
             this._super(p,{
                 x: pos.x + Q.c.tileW / 2,
                 y: pos.y + Q.c.tileH / 2,
@@ -411,12 +414,12 @@ Quintus.GameControl = function(Q) {
             if(Q.locInBounds(loc, Q.GameState.map.data.map.w, Q.GameState.map.data.map.h)){
                 this.shopOn = Q.MapController.getTileAt(loc);
                 if(!Q.isServer()){
-                    Q.stage(2).hoverShop(this.shopOn);
+                    Q.GameController.tileDetails.displayShop(this.shopOn);
                 }
             } else {
                 this.shopOn = false;
                 if(!Q.isServer()){
-                    Q.stage(2).hoverShop(this.shopOn);
+                    Q.GameController.tileDetails.displayShop(this.shopOn);
                 }
             }
         },
@@ -557,7 +560,7 @@ Quintus.GameControl = function(Q) {
             if(!Q.isServer()){
                 player.sprite.p.allowMovement = true;
                 //Show the tile props in a menu
-                Q.stage(2).hoverShop(Q.MapController.getTileAt(tileTo.loc));
+                Q.GameController.tileDetails.displayShop(Q.MapController.getTileAt(tileTo.loc));
             }
             return tileTo.loc;
         },  
@@ -623,6 +626,7 @@ Quintus.GameControl = function(Q) {
                     
             let player = Q.GameState.turnOrder[0];
             player.turn = true;
+            player.invested = 0;
             Q.MenuController.makeMenu("playerTurnMenu", [0, 0]);
             if(!Q.isServer()){
                 if(Q.isActiveUser()){
@@ -637,7 +641,7 @@ Quintus.GameControl = function(Q) {
             Q.GameController.adjustShopValues(player, shop);
             if(!Q.isServer()){
                 shop.sprite.updateTile(player.color);
-                Q.stage(2).hoverShop(shop);
+                Q.GameController.tileDetails.displayShop(shop);
             }
         },
         buyOutShop: function(player, shop){
@@ -654,8 +658,7 @@ Quintus.GameControl = function(Q) {
         },
         //Changes the value of shops in the district based on the number that the player owns.
         adjustShopValues: function(player, shop){
-            let district = Q.GameState.map.districts[shop.district];
-            let shopsOwned = district.filter((shop) => {return shop.ownedBy === player;});
+            let shopsOwned = Q.MapController.getShopsOwnedInDistrict(shop);
             if(shopsOwned.length > 1){
                 shopsOwned.forEach((shop) => {
                     shop.cost = Q.MapController.generateShopCost(shop.initialValue, shop.rank, shop.investedCapital, shopsOwned.length);
@@ -668,14 +671,12 @@ Quintus.GameControl = function(Q) {
         },
         //Updates the shop to the current values.
         updateShopValues: function(shop){
-            let player = shop.ownedBy;
-            let district = Q.GameState.map.districts[shop.district];
-            let shopsOwned = player ? district.filter((shop) => {return shop.ownedBy === player;}).length : 1;
+            let shopsOwned = shop.ownedBy ? Q.MapController.getShopsOwnedInDistrict(shop) : 1;
             shop.value = Q.MapController.generateShopValue(shop.initialValue, shop.rank, shop.investedCapital);
             shop.cost = Q.MapController.generateShopCost(shop.initialValue, shop.rank, shop.investedCapital, shopsOwned);
             if(!Q.isServer()){
-                shop.sprite.updateTile(player.color);
-                Q.stage(2).hoverShop(shop);
+                shop.sprite.updateTile(shop.ownedBy.color);
+                Q.GameController.tileDetails.displayShop(shop);
             }
         }
     });
@@ -716,15 +717,16 @@ Quintus.GameControl = function(Q) {
             }
         },
         makeMenu: function(state, selected){
-            Q.GameState.inputState =  Q.MenuController.inputStates[state];
+            Q.GameState.inputState = Q.MenuController.inputStates[state];
             Q.MenuController.initializeMenu(Q.GameState.inputState, selected);
+            if(Q.GameState.inputState.preDisplay) Q.GameState.inputState.preDisplay();
             if(!Q.isServer()){
-                Q.stageScene("menu", 1, {menu: Q.GameState.inputState, selected: selected || [0, 0]});
+                Q.stageScene("menu", 1, {menu: Q.GameState.inputState, selected: selected || [0, 0], options: Q.MenuController.itemGrid});
                 Q.MenuController.turnOnStandardInputs();
-                   
             }
+            return Q.GameState.inputState;
         },
-        makeMoveShopSelector: function(confirmFunc, backFunc){
+        makeMoveShopSelector: function(confirmFunc, backFunc, startPos){
             let goBack, finish;
             switch(confirmFunc){
                 case "invest":
@@ -787,13 +789,13 @@ Quintus.GameControl = function(Q) {
             }
             Q.GameState.inputState = {
                 func: "moveShopSelector", 
-                selectorPos: Q.getXY(Q.GameState.turnOrder[0]),
                 goBack: goBack,
-                finish: finish
+                finish: finish,
+                type: "currentOwned"
             };
-            Q.GameState.shopSelector = new Q.ShopSelector();
+            Q.GameState.shopSelector = new Q.ShopSelector({pos: startPos});
             Q.MenuController.turnOnMoveSelectShopInputs();
-            
+            return Q.GameState.inputState;
         },
         runDeepFunction: function(props){
             console.log(props)
@@ -854,9 +856,12 @@ Quintus.GameControl = function(Q) {
                 cycler: 6,
                 confirm: () => {
                     let investAmount = Q.MenuController.getValueFromNumberCycler();
+                    let maxCapital = Q.GameState.inputState.shop.maxCapital;
+                    let playerMoney = Q.GameState.turnOrder[0].money;
                     //If the invest amount is greater than allowed, set the amount to the allowed amount.
-                    if(investAmount > Q.GameState.inputState.shop.maxCapital){
-                        Q.MenuController.setNumberCyclerValue(Q.GameState.inputState.shop.maxCapital);
+                    if(investAmount > maxCapital || investAmount > playerMoney){
+                        let newAmount = Math.min(maxCapital, playerMoney);
+                        Q.MenuController.setNumberCyclerValue(newAmount);
                     }
                     //Otherwise, invest that amount into the shop.
                     else {
@@ -865,22 +870,15 @@ Quintus.GameControl = function(Q) {
                             Q.GameState.inputState.shop.investedCapital += investAmount;
                             Q.GameController.updateShopValues(Q.GameState.inputState.shop);
                             Q.GameController.changePlayerMoney(Q.GameState.turnOrder[0], -investAmount);
+                            Q.GameState.turnOrder[0].invested++;
                         }
-                        if(!Q.isServer()){
-                            Q.clearStage(1);
-                        }
-                        Q.MenuController.makeMenu("playerTurnMenu", [0, 0]);
-                        
-                        //ToDo: if the investAmount is > 0, prevent the user from investing anymore.
-                        //TODo: prevent the user from investing in shops that are not owned by them. (do this elsewhere).
-                        //TODo: prevent the user from investing more money than they have.
+                        Q.MenuController.turnOffNumberCyclerInputs();
+                        return Q.MenuController.makeMenu("playerTurnMenu", [0, 0]);
                     }
                 },
                 goBack: () => {
-                    if(!Q.isServer()){
-                        Q.clearStage(1);
-                    }
-                    Q.MenuController.inputStates.shopsMenu.cursorSelectShop("invest", "toShopsMenu");
+                    Q.MenuController.turnOffNumberCyclerInputs();
+                    return Q.MenuController.inputStates.shopsMenu.cursorSelectShop("invest", "toShopsMenu", Q.GameState.inputState.shop.loc);
                 }
             },
             upgradeMenu: {
@@ -921,7 +919,6 @@ Quintus.GameControl = function(Q) {
                 showShopsMenu: () => {
                     Q.MenuController.makeMenu("shopsMenu");
                     
-                    
                 },
                 viewBoard: () => {
                     
@@ -935,6 +932,20 @@ Quintus.GameControl = function(Q) {
             },
             shopsMenu: {
                 func: "navigateMenu",
+                preDisplay: () => {
+                    let player = Q.GameState.turnOrder[0];
+                    //TODO: check against the allowed for this turn
+                    //TODO: instead of removal, cross it out (mark as not allowed or something)
+                    if(player.invested > 0){
+                        Q.MenuController.itemGrid.splice(0, 1);
+                    }
+                    if(player.upgraded > 0){
+                        Q.MenuController.itemGrid.splice(1, 1);
+                    }
+                    if(player.auctioned > 0){
+                        Q.MenuController.itemGrid.splice(2, 1);
+                    }
+                },
                 options:[
                     ["Invest", "cursorSelectShop", ["invest", "toShopsMenu"]],
                     ["Upgrade", "cursorSelectShop", ["upgrade", "toShopsMenu"]],
@@ -945,16 +956,16 @@ Quintus.GameControl = function(Q) {
                     let selected = [0, 1];
                     Q.MenuController.initializeMenu(Q.GameState.inputState, selected);
                     if(!Q.isServer()){
-                        Q.stageScene("menu", 1, {menu: Q.GameState.inputState, selected: selected});
+                        Q.stageScene("menu", 1, {menu: Q.GameState.inputState, selected: selected, options: Q.MenuController.itemGrid});
                         Q.MenuController.turnOnStandardInputs();
                     }
                     return {func: "toPlayerTurnMainMenu", selected: selected};
                 },
                 //Gives the active player a cursor that they can move around the map to select a shop.
                 //What happens after selecting the shop is determined by the passed in type
-                cursorSelectShop: (finish, goBack) => {
+                cursorSelectShop: (finish, goBack, startPos) => {
                     Q.MenuController.turnOffStandardInputs();
-                    Q.MenuController.makeMoveShopSelector(finish, goBack);
+                    return Q.MenuController.makeMoveShopSelector(finish, goBack, startPos);
                 }
             },
             menuMovePlayer: {
@@ -1108,6 +1119,7 @@ Quintus.GameControl = function(Q) {
                 else if(itemGrid[currentItem[1]][currentItem[0]][0] > 9) itemGrid[currentItem[1]][currentItem[0]][0] = 0;
                 if(this.currentCont){
                     this.currentCont.p.menuButtons[this.currentItem[0]][this.currentItem[1]].changeLabel(itemGrid[currentItem[1]][currentItem[0]][0]);
+                    this.currentCont.trigger("adjustedNumber");
                 }
             } 
             //Move left/right
@@ -1140,7 +1152,15 @@ Quintus.GameControl = function(Q) {
         },
         processShopSelectorInput: function(input){
             if(input === "confirm"){
-                return Q.GameState.inputState.finish(Q.MapController.getTileAt(Q.getLoc(Q.GameState.shopSelector.p.x, Q.GameState.shopSelector.p.y)));
+                //Make sure the tile is valid
+                let tile = Q.MapController.getTileAt(Q.getLoc(Q.GameState.shopSelector.p.x, Q.GameState.shopSelector.p.y));
+                let valid = false;
+                switch(Q.GameState.inputState.type){
+                    case "currentOwned":
+                        if(Q.GameState.turnOrder[0] === tile.ownedBy) valid = true;
+                        break;
+                }
+                if(valid) return Q.GameState.inputState.finish(tile);
             } else if(input === "back"){
                 return Q.GameState.inputState.goBack();
             } else {

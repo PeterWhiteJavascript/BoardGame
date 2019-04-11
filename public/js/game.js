@@ -89,12 +89,10 @@ Quintus.Game = function(Q) {
         });
     });
     Q.scene("hud", function(stage){
-        let boxWidth = 300;
-        let boxHeight = 220;
-        let tileDetails = new Q.TileDetails({stage: stage, x: Q.width - boxWidth - 50, y: 120, shopLoc: Q.GameState.turnOrder[0].loc});
+        let tileDetails = Q.GameController.tileDetails = stage.insert(new Q.ShopStatusBox({x: Q.width - Q.c.boxWidth - 50, y: 120, w: Q.c.boxWidth, h: Q.c.boxHeight, radius: 0, shopLoc: Q.GameState.turnOrder[0].loc, stage: stage}));
         
         //Create the standings
-        let standingsCont = stage.insert(new Q.StandardMenu({w: boxWidth, h: boxHeight, x: Q.width - boxWidth - 50, y: boxHeight + 150}));
+        let standingsCont = stage.insert(new Q.StandardMenu({w: Q.c.boxWidth, h: Q.c.boxHeight, x: Q.width - Q.c.boxWidth - 50, y: Q.c.boxHeight + 150}));
         
         for(let i = 0; i < Q.GameState.turnOrder.length; i++){
             let player = Q.GameState.turnOrder[i];

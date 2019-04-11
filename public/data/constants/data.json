@@ -4,6 +4,8 @@
     },
     "tileW": 64,
     "tileH": 48,
+    "boxWidth": 300,
+    "boxHeight": 220,
     "tileOffset": 4,
     "vendorText": {
         "Peanut":["Want a peanut? \nIt'll only cost you peanuts hahaha!"],
