@@ -55,9 +55,17 @@ Q.socket.on('connected', function (connectionData) {
         //This is the actual result of user actions, shown on all clients except the one who did the action
         Q.processInputResult = function(data){
             let player;
+            console.log(data)
             switch(data.func){
-                case "turnOffShopInputs":
-                    
+                case "processShopSelectorInput":
+                    Q.MenuController.processShopSelectorInput(data.props.input);
+                    break;
+                case "controlNumberCycler":
+                    Q.MenuController.processNumberCyclerInput(data.props.input);
+                    break;
+                case "makeMoveShopSelector":
+                    Q.MenuController.turnOffStandardInputs();
+                    Q.MenuController.makeMoveShopSelector(data.props.confirmFunc, data.props.backFunc, data.props.startPos);
                     break;
                 case "moveShopSelectorResult":
                     console.log(data)
@@ -73,35 +81,19 @@ Q.socket.on('connected', function (connectionData) {
                     break;
                 case "removeDiceAndBackToPTM":
                     Q.GameController.removeDice();
-                    data.func = "toPlayerTurnMainMenu";
+                    data.func = "loadOptionsMenu";
+                    data.props.menu = "playerTurnMenu";
+                    data.props.selected = [0, 0];
                     Q.processInputResult(data);
                     break;
                 case "playerMovement":
                     //If there are dice showing, remove them.
                     if(Q.GameController.dice) Q.GameController.removeDice();
-                    
-                    player = Q.GameController.getPlayer(data.playerId);
-                    Q.GameController.movePlayer(player, {loc: data.props.locTo});
-                    //Show the tile props in a menu
-                    Q.stage(2).hoverShop(Q.MapController.getTileAt(data.props.locTo));
-                    
-                    //Check the passby
-                    Q.MapController.checkPassByTile(player, data.props.locTo, data.props.finish);
-                    
-                    if(data.props.finish && !data.props.passBy){
-                        Q.GameController.askFinishMove(player);
-                    }
+                    Q.GameController.playerMovement(data.key, data.playerId);
                     break;
-                //When going to the playerTurnMainMenu (also used when going back to it.)
-                case "toPlayerTurnMainMenu":
-                    Q.GameState.inputState = Q.MenuController.inputStates.playerTurnMenu;
-                    let menuOptionSelected = data.props.selected;
-                    Q.MenuController.initializeMenu(Q.GameState.inputState);
-                    Q.stageScene("menu", 1, {menu: Q.GameState.inputState, selected: menuOptionSelected, options: Q.MenuController.itemGrid});
-                    Q.MenuController.turnOnStandardInputs();
-                    
+                case "loadOptionsMenu":
+                    Q.MenuController.makeMenu(data.props.menu, data.props.selected);
                     break;
-                //TODO: move the cursor up/down/whatever in the menu
                 case "navigateMenu":
                     let pos = data.props.pos.item;
                     Q.MenuController.currentItem = pos;
@@ -109,8 +101,7 @@ Q.socket.on('connected', function (connectionData) {
                     break;
                 //If the player says yes to ending their move here.
                 case "playerConfirmMove":
-                    Q.clearStage(1);
-                    Q.GameController.playerConfirmMove(Q.GameState.turnOrder[0].playerId);
+                    Q.GameController.playerConfirmMove(data.playerId);
                     break;
                 case "buyShop":
                     Q.GameController.buyShop(Q.GameController.getPlayer(data.playerId), Q.MapController.getTileAt(data.props.shopLoc));
@@ -125,16 +116,29 @@ Q.socket.on('connected', function (connectionData) {
                     break;
                 //If the player says they don't want to end their move here.
                 case "playerGoBackMove":
-                    player = Q.GameController.getPlayer(data.playerId);
-                    player.sprite.p.allowMovement = true;
-                    Q.GameController.movePlayer(player, {loc: data.props.locTo});
-                    //Show the tile props in a menu
-                    Q.stage(2).hoverShop(Q.MapController.getTileAt(data.props.locTo));
-                    
-                    Q.clearStage(1);
+                    Q.MenuController.turnOffStandardInputs();
+                    Q.GameController.playerGoBackMove(data.playerId);
                     break;
                 case "goBackMenu":
                     Q.GameState.inputState.goBack();
+                    break;
+                case "purchaseSet":
+                    if(data.props.num >= 0){
+                        Q.GameController.purchaseSet(data.props.num, data.props.playerId);
+                    }
+                    Q.MenuController.turnOffStandardInputs();
+                    if(data.props.finish){
+                        Q.GameController.askFinishMove(Q.GameController.getPlayer(data.props.playerId));
+                    }
+                    break;
+                case "purchaseSetItem":
+                    if(data.props.loc){
+                        Q.GameController.purchaseSetItem(data.props.loc, data.props.playerId);
+                    } 
+                    Q.MenuController.turnOffStandardInputs();
+                    if(data.props.finish){
+                        Q.GameController.askFinishMove(Q.GameController.getPlayer(data.props.playerId));
+                    }
                     break;
             }
         };

@@ -71,7 +71,7 @@ function game(p){
         case "ffa":
         case "timed":
         case "2v2":
-            this.numOfPlayers = 1;//4
+            this.numOfPlayers = 2;//4
             break;
         case "custom":
             this.numOfPlayers = this.settings.numOfPlayers;
@@ -134,7 +134,6 @@ io.on('connection', function (socket) {
         //TODO: using current game state, figure out what this input is for.
         //For now, move the player around.
         let props = {};
-        //console.log(Q.GameState.inputState.func)
         switch(Q.GameState.inputState.func){
             case "moveShopSelector":
                 props = Q.MenuController.processShopSelectorInput(data.input);
@@ -172,7 +171,13 @@ io.on('connection', function (socket) {
                 break;
             case "controlNumberCycler":
                 props = Q.MenuController.processNumberCyclerInput(data.input);
-                //TODO: move the cycler
+                if(props && props.func){
+                    socket.broadcast.to(gameRoom).emit("inputResult", {key: data.input, playerId: user.id, func: props.func, props: props});
+                    //Use this when server response is required (random numbers)
+                    if(props.self){
+                        socket.emit("inputResult", {key: data.input, playerId: user.id, func: props.func, props: props});
+                    }
+                }
                 
                 break;
             //When the player is moving after the has been rolled
