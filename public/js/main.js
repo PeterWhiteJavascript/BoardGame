@@ -65,7 +65,7 @@ Q.socket.on('connected', function (connectionData) {
                     break;
                 case "makeMoveShopSelector":
                     Q.MenuController.turnOffStandardInputs();
-                    Q.MenuController.makeMoveShopSelector(data.props.confirmFunc, data.props.backFunc, data.props.startPos);
+                    Q.MenuController.makeMoveShopSelector(data.props.confirmType, data.props.backFunc, data.props.startPos);
                     break;
                 case "moveShopSelectorResult":
                     console.log(data)
@@ -145,19 +145,18 @@ Q.socket.on('connected', function (connectionData) {
         Q.socket.on("inputResult", Q.processInputResult);
         
         Q.socket.emit("readyToStartGame");
-        
+        console.log("Ready!")
         let users;
-        Q.socket.on("usersReady", function(data){
+        Q.socket.on("allUsersReady", function(data){
             users = data.users;
-            if(data.allReady){
-                Q.stageScene("game", 0, {
-                    mapData: Q.assets["data/maps/"+data.map], 
-                    settings: data.settings, 
-                    host: data.host,
-                    users: users,
-                    turnOrder: data.turnOrder
-                });
-            }
+            console.log("All Ready!")
+            Q.stageScene("game", 0, {
+                mapData: Q.assets["data/maps/"+data.map], 
+                settings: data.settings, 
+                host: data.host,
+                users: users,
+                turnOrder: data.turnOrder
+            });
         });
         
     });

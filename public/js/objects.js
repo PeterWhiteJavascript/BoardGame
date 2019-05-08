@@ -680,6 +680,10 @@ Quintus.Objects = function(Q) {
         Q.MenuController.currentCont.tileDetails = menuBox.insert(new Q.ShopStatusBox({x:menuBox.p.w - Q.c.boxWidth - 20, y: menuBox.p.h / 2 - 40, w: Q.c.boxWidth, h: Q.c.boxHeight, radius: 0, shopLoc: shop.loc, stage: stage}));
     });
     
+    Q.scene("upgradeMenu", function(stage){
+        console.log("showing upgrade menu");
+    });
+    
     
     Q.GameObject.extend("optionsController",{
         toggleBoolOpt:function(opt){

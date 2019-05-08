@@ -715,9 +715,13 @@ Quintus.GameControl = function(Q) {
                         Q.stageScene("investMenu", 1, props);
                         Q.MenuController.turnOnNumberCyclerInputs();
                     }
-                    
                     break;
                 case "upgradeMenu":
+                    Q.MenuController.initializeConfirmer();
+                    if(!Q.isServer()){
+                        Q.stageScene("upgradeMenu", 1, props);
+                        Q.MenuController.turnOnConfirmerInputs();
+                    }
                     
                     break;
                 case "auctionMenu":
@@ -736,9 +740,9 @@ Quintus.GameControl = function(Q) {
             }
             return Q.GameState.inputState;
         },
-        makeMoveShopSelector: function(confirmFunc, backFunc, startPos){
+        makeMoveShopSelector: function(confirmType, backFunc, startPos){
             let goBack, finish;
-            switch(confirmFunc){
+            switch(confirmType){
                 case "invest":
                     finish = function(shop){
                         if(!shop) return;//TODO: play sound???
@@ -757,7 +761,7 @@ Quintus.GameControl = function(Q) {
                     finish = function(shop){
                         if(!shop) return;//TODO: play sound???
                         Q.MenuController.turnOffMoveSelectShopInputs();
-                        Q.MenuController.makeCustomMenu("upgradeMenu", shop);
+                        Q.MenuController.makeCustomMenu("upgradeMenu", {shop: shop});
                         return {
                             func: "turnOffMoveSelectShopInputs", 
                             next: {
@@ -771,7 +775,7 @@ Quintus.GameControl = function(Q) {
                     finish = function(shop){
                         if(!shop) return;//TODO: play sound???
                         Q.MenuController.turnOffMoveSelectShopInputs();
-                        Q.MenuController.makeCustomMenu("auctionMenu", shop);
+                        Q.MenuController.makeCustomMenu("auctionMenu", {shop: shop});
                         return {
                             func: "turnOffMoveSelectShopInputs", 
                             next: {
@@ -784,9 +788,10 @@ Quintus.GameControl = function(Q) {
             }
             switch(backFunc){
                 case "toShopsMenu":
-                    goBack = function(){
+                    goBack = function(backOption){
+                        let backOpt = backOption === "invest" ? [0, 0] : backOption === "upgrade" ? [0, 1] : [0, 2];
                         Q.MenuController.turnOffMoveSelectShopInputs();
-                        Q.MenuController.makeMenu("shopsMenu");
+                        Q.MenuController.makeMenu("shopsMenu", backOpt);
                         return {
                             func: "turnOffMoveSelectShopInputs", 
                             next: {
@@ -801,11 +806,12 @@ Quintus.GameControl = function(Q) {
                 func: "moveShopSelector", 
                 goBack: goBack,
                 finish: finish,
-                type: "currentOwned"
+                type: "currentOwned",
+                backOption: confirmType
             };
             Q.GameState.shopSelector = new Q.ShopSelector({pos: startPos});
             Q.MenuController.turnOnMoveSelectShopInputs();
-            return {func: "makeMoveShopSelector", confirmFunc: confirmFunc, backFunc: backFunc, startPos: startPos};
+            return {func: "makeMoveShopSelector", confirmType: confirmType, backFunc: backFunc, startPos: startPos};
         },
         runDeepFunction: function(props){
             console.log(props)
@@ -830,6 +836,20 @@ Quintus.GameControl = function(Q) {
                         Q.stage(0).off("pressedInput", Q.MenuController, "processShopSelectorInput");
                     });
                 }
+            }
+        },
+        turnOffConfirmerInputs: function(){
+            if(!Q.isServer()){
+                Q.clearStage(1);
+                if(Q.isActiveUser()){
+                    Q.stage(0).off("pressedInput", Q.MenuController, "processConfirmerInput");
+                }
+            }
+        },
+        turnOnConfirmerInputs: function(){
+            if(Q.isActiveUser()){
+                Q.stage(0).on("pressedInput", Q.MenuController, "processConfirmerInput");
+                Q.stage(1).on("destroyed", function(){Q.stage(0).off("pressedInput", Q.MenuController, "processConfirmerInput");});
             }
         },
         turnOffNumberCyclerInputs: function(){
@@ -892,7 +912,16 @@ Quintus.GameControl = function(Q) {
                 }
             },
             upgradeMenu: {
-                
+                func: "confirmer",
+                confirm: () => {
+                    //Upgrade the shop
+                    console.log("upgrade")
+                },
+                goBack: () => {
+                    console.log("going back")
+                    Q.MenuController.turnOffConfirmerInputs();
+                    return Q.MenuController.inputStates.shopsMenu.cursorSelectShop("upgrade", "toShopsMenu", Q.GameState.inputState.shop.loc);
+                }
             },
             auctionMenu: {
                 
@@ -946,7 +975,6 @@ Quintus.GameControl = function(Q) {
                     let player = Q.GameState.turnOrder[0];
                     //TODO: check against the allowed for this turn
                     //TODO: instead of removal, cross it out (mark as not allowed or something)
-                    console.log(player)
                     if(player.invested > 0){
                         Q.MenuController.itemGrid.splice(0, 1);
                     }
@@ -1051,6 +1079,11 @@ Quintus.GameControl = function(Q) {
                     return {func: "endTurn"};
                 }
             }
+        },
+        //Confirmer does not take directional inputs. Only confirm/back
+        initializeConfirmer: function(){
+            this.currentItem = [0, 0];
+            this.itemGrid = [[[0, "confirm"]]];
         },
         initializeNumberCycler: function(data){
             this.currentItem = data.currentItem || [data.cycler - 1, 0];
@@ -1166,6 +1199,7 @@ Quintus.GameControl = function(Q) {
             if(input === "confirm"){
                 //Make sure the tile is valid
                 let tile = Q.MapController.getTileAt(Q.getLoc(Q.GameState.shopSelector.p.x, Q.GameState.shopSelector.p.y));
+                if(!tile) return;
                 let valid = false;
                 switch(Q.GameState.inputState.type){
                     case "currentOwned":
@@ -1174,11 +1208,19 @@ Quintus.GameControl = function(Q) {
                 }
                 if(valid) Q.GameState.inputState.finish(tile);
             } else if(input === "back"){
-                Q.GameState.inputState.goBack();
+                Q.GameState.inputState.goBack(Q.GameState.inputState.backOption);
             } else {
                 Q.GameState.shopSelector.trigger("moved", Q.convertDirToCoord(input));
             }
             return {func: "processShopSelectorInput", input: input};
+        },
+        processConfirmerInput: function(input){
+            if(input === "confirm"){
+                Q.MenuController.confirmMenuOption();
+            } else if(input === "back"){
+                Q.MenuController.pressBackInMenu();
+            }
+            return {func: "processConfirmerInput", input: input};
         },
         processNumberCyclerInput: function(input){
             if(input === "confirm"){
@@ -1188,11 +1230,11 @@ Quintus.GameControl = function(Q) {
             } else if(input === "up"){
                 this.adjustNumberCyclerPosition([0, 1]);
             } else if(input === "down"){
-                this.adjustNumberCyclerPosition([0, -1])
+                this.adjustNumberCyclerPosition([0, -1]);
             } else if(input === "left"){
-                this.adjustNumberCyclerPosition([-1, 0])
+                this.adjustNumberCyclerPosition([-1, 0]);
             } else if(input === "right"){
-                this.adjustNumberCyclerPosition([1, 0])
+                this.adjustNumberCyclerPosition([1, 0]);
             }
             return {func: "controlNumberCycler", input: input};
         },
