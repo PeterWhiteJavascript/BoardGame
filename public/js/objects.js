@@ -84,7 +84,7 @@ Quintus.Objects = function(Q) {
         showMovementDirections: function(){
             this.p.allowMovement = true;
             let lastTile = Q.GameState.currentMovementPath[Q.GameState.currentMovementPath.length - 2];
-            let tileOn = Q.MapController.getTileAt(this.p.loc);
+            let tileOn = Q.MapController.getTileAt(Q.GameState, this.p.loc);
             let dirs = tileOn.dirs ? tileOn.dirs.slice() : Object.keys(tileOn.dir);
             //Force the player to continue along the path that they were on from last turn.
             if(Q.GameState.currentMovementPath.length <= 1) {
@@ -515,7 +515,7 @@ Quintus.Objects = function(Q) {
             this.districtCont = shopStatusBox.insert(new Q.BGText({x: - 10, y: -25, w: Q.c.boxWidth + 20, h: 30, fill: "#AAA", textP: {textClass: "StandardText", label: " ", x: Q.c.boxWidth, y: 5, color: "#111"}}));
 
             this.bottomDecoration = shopStatusBox.insert(new Q.UI.Container({cx: 0, cy: 0, x: -5, y: Q.c.boxHeight - 2, w: Q.c.boxWidth + 10, h: 5,  fill: "#AAA", radius: 3}));
-            shopStatusBox.displayShop(Q.MapController.getTileAt(this.p.shopLoc));
+            shopStatusBox.displayShop(Q.MapController.getTileAt(Q.GameState, this.p.shopLoc));
         },
         
         //Take a tile and display the correct information.
@@ -600,7 +600,7 @@ Quintus.Objects = function(Q) {
         },
         adjustedNumber: function(){
             let value = Q.MenuController.getValueFromNumberCycler();
-            let td = Q.MenuController.currentCont.tileDetails;
+            let td = Q.GameState.currentCont.tileDetails;
             let shop = Q.stage(1).options.shop;
             let newCapital = shop.maxCapital - value;
             if(newCapital < 0) {
@@ -642,11 +642,11 @@ Quintus.Objects = function(Q) {
             if(textArea.p.text) textArea.p.text.destroy();
             textArea.p.text = textArea.insert(new Q.ScrollingText({label:item}));
             textArea.p.text.on("doneScrolling", processDialogue);
-            Q.MenuController.currentCont = textArea.p.text;
+            Q.GameState.currentCont = textArea.p.text;
             
             if(!dialogue[idx + 1]){
-                Q.MenuController.currentCont = optionsArea;
-                Q.MenuController.currentCont.displayOptions(stage.options.dialogue.options, stage.options.dialogue.onHoverOption);
+                Q.GameState.currentCont = optionsArea;
+                Q.GameState.currentCont.displayOptions(stage.options.dialogue.options, stage.options.dialogue.onHoverOption);
             }
         }
         processDialogue();
@@ -655,16 +655,17 @@ Quintus.Objects = function(Q) {
     Q.scene("menu", function(stage){
         stage.options.selected = stage.options.selected || [0, 0];
         let menu = stage.options.menu;
+        let state = stage.options.state;
         let options = stage.options.options;
         let menuBox = stage.insert(new Q.UI.Container({x: 50, y:50, w: 195, h: options.length * 40 + 15 , cx:0, cy:0, fill: Q.OptionsController.options.menuColor, opacity:0.8, border:1}));
         
         let optionsArea = menuBox.insert(new Q.MenuButtonContainer({x:5, y:5, cx:0, cy:0, w:menuBox.p.w - 10, h:menuBox.p.h - 10, fill: Q.OptionsController.options.menuColor}));
-        Q.MenuController.currentCont = optionsArea;
+        state.currentCont = optionsArea;
         let displayable = options.map((opt) => {
             return opt[0];
         });
-        Q.MenuController.currentCont.displayOptions(displayable);
-        Q.MenuController.currentCont.p.menuButtons[stage.options.selected[1]][stage.options.selected[0]].hover();
+        state.currentCont.displayOptions(displayable);
+        state.currentCont.p.menuButtons[stage.options.selected[1]][stage.options.selected[0]].hover();
     });
     
     Q.scene("investMenu", function(stage){
@@ -675,9 +676,9 @@ Quintus.Objects = function(Q) {
         menuBox.insert(new Q.StandardText({x: menuBox.p.w / 2, y: 30, label: "Invest in " + shop.name, align: "middle"}));
         stage.numberCycler = menuBox.insert(new Q.NumberCycler({digits: digits, x: menuBox.p.w / 2, y: 100}));
         stage.numberCycler.p.menuButtons[currentItem[0]][currentItem[1]].selected();
-        Q.MenuController.currentCont = stage.numberCycler;
+        Q.GameState.currentCont = stage.numberCycler;
         let baseTileDetails = menuBox.insert(new Q.ShopStatusBox({x: 20, y: menuBox.p.h / 2 - 40, w: Q.c.boxWidth, h: Q.c.boxHeight, radius: 0, shopLoc: shop.loc, stage: stage}));
-        Q.MenuController.currentCont.tileDetails = menuBox.insert(new Q.ShopStatusBox({x:menuBox.p.w - Q.c.boxWidth - 20, y: menuBox.p.h / 2 - 40, w: Q.c.boxWidth, h: Q.c.boxHeight, radius: 0, shopLoc: shop.loc, stage: stage}));
+        Q.GameState.currentCont.tileDetails = menuBox.insert(new Q.ShopStatusBox({x:menuBox.p.w - Q.c.boxWidth - 20, y: menuBox.p.h / 2 - 40, w: Q.c.boxWidth, h: Q.c.boxHeight, radius: 0, shopLoc: shop.loc, stage: stage}));
     });
     
     Q.scene("upgradeMenu", function(stage){

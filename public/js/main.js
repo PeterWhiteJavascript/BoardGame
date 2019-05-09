@@ -27,7 +27,6 @@ Q.user = {};
 
 //Once the connection has been made
 Q.socket.on('connected', function (connectionData) {
-    //let SEED = Math.seedrandom(connectionData.initialSeed);
     Q.user.id = connectionData.id;
     console.log("Player " + Q.user.id + " connected.");
     Q.user.gameRoom = connectionData.gameRoom;
@@ -51,7 +50,7 @@ Q.socket.on('connected', function (connectionData) {
         Q.socket.on('updated', function (data) {
 
         });
-        
+        /*
         //This is the actual result of user actions, shown on all clients except the one who did the action
         Q.processInputResult = function(data){
             let player;
@@ -119,42 +118,98 @@ Q.socket.on('connected', function (connectionData) {
                     Q.MenuController.turnOffStandardInputs();
                     Q.GameController.playerGoBackMove(data.playerId);
                     break;
-                case "goBackMenu":
-                    Q.GameState.inputState.goBack();
+            }
+        };*/
+        Q.applyInputResult = function(data){
+            console.log(data);
+            let state = Q.GameState;
+            let player = Q.GameController.getPlayer(state, data.playerId);
+            switch(data.func){
+                case "navigateMenu":
+                    Q.MenuController.setMenuPosition(state, data.item);
+                    break;
+                case "loadOptionsMenu":
+                    Q.MenuController.makeMenu(state, data.menu, data.selected);
+                    break;
+                case "rollDie":
+                    Q.GameController.startRollingDie(state, 1, player.sprite);
+                    break;
+                case "stopDieAndAllowMovement":
+                    Q.GameController.stopDie(state, data.currentMovementNum);
+                    Q.GameController.allowPlayerMovement(state, data.currentMovementNum);
+                    break;
+                case "removeDiceAndBackToPTM":
+                    Q.GameController.removeDice(state);
+                    Q.applyInputResult({func: "loadOptionsMenu", menu: "playerTurnMenu", selected: [0, 0]});
+                    break;
+                case "playerConfirmMove":
+                    Q.GameController.playerConfirmMove(state, data.playerId);
+                    break;
+                case "playerMovement":
+                    var tile = Q.MapController.getTileAt(state, data.loc);
+                    Q.GameController.removeDice(state);
+                    Q.GameController.tileDetails.displayShop(tile);
+                    
+                    if(data.direction === "forward"){
+                        Q.GameController.movePlayer(player, tile);
+                        state.currentMovementPath.push(tile);
+                        Q.MapController.checkPassByTile(state, player, tile, data.finish);
+                    } else if(data.direction === "back"){
+                        Q.GameController.playerGoBackMove(state, player.playerId);
+                    }
+                    if(data.finish && !data.passBy){
+                        Q.GameController.askFinishMove(state, player);
+                    }
+                    break;
+                case "playerGoBackMove":
+                    Q.clearStage(1);
+                    data.func = "playerMovement";
+                    player.sprite.showMovementDirections();
+                    Q.GameController.playerGoBackMove(state, player.playerId);
                     break;
                 case "purchaseSet":
-                    if(data.props.num >= 0){
-                        Q.GameController.purchaseSet(data.props.num, data.props.playerId);
+                    Q.clearStage(1);
+                    if(data.num >= 0){
+                        Q.GameController.purchaseSet(state, data.num, data.playerId);
                     }
-                    Q.MenuController.turnOffStandardInputs();
-                    if(data.props.finish){
-                        Q.GameController.askFinishMove(Q.GameController.getPlayer(data.props.playerId));
+                    if(data.finish){
+                        Q.GameController.askFinishMove(state, player);
                     }
                     break;
                 case "purchaseSetItem":
-                    if(data.props.loc){
-                        Q.GameController.purchaseSetItem(data.props.loc, data.props.playerId);
+                    Q.clearStage(1);
+                    if(data.loc){
+                        Q.GameController.purchaseSetItem(state, data.loc, data.playerId);
                     } 
-                    Q.MenuController.turnOffStandardInputs();
-                    if(data.props.finish){
-                        Q.GameController.askFinishMove(Q.GameController.getPlayer(data.props.playerId));
+                    if(data.finish){
+                        Q.GameController.askFinishMove(state, player);
                     }
+                    break;
+                case "buyShop":
+                    Q.GameController.buyShop(state, Q.GameController.getPlayer(state, data.playerId), Q.MapController.getTileAt(state, data.loc));
+                    Q.GameController.endTurn(state);
+                    break;
+                case "buyOutShop":
+                    Q.GameController.buyOutShop(state, Q.GameController.getPlayer(state, data.playerId), Q.MapController.getTileAt(state, data.loc));
+                    Q.GameController.endTurn(state);
+                    break;
+                case "endTurn":
+                    Q.GameController.endTurn(state);
+                    break;
+                case "goBackMenu":
+                    Q.GameState.inputState.goBack(state);
                     break;
             }
         };
-        Q.socket.on("inputResult", Q.processInputResult);
+        Q.socket.on("inputResult", Q.applyInputResult);
         
         Q.socket.emit("readyToStartGame");
-        console.log("Ready!")
-        let users;
         Q.socket.on("allUsersReady", function(data){
-            users = data.users;
-            console.log("All Ready!")
             Q.stageScene("game", 0, {
                 mapData: Q.assets["data/maps/"+data.map], 
                 settings: data.settings, 
                 host: data.host,
-                users: users,
+                users: data.users,
                 turnOrder: data.turnOrder
             });
         });

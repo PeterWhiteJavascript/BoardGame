@@ -99,12 +99,7 @@ let Game = function(p){
     this.settings = p.settings;
     this.map = p.map;
     this.mapData = JSON.parse(fs.readFileSync(serv.filesFolder + "data/maps/" + this.map));
-    
-    let randSeed = Math.random();
-    this.random = new Math.seedrandom(randSeed);
-    this.initialSeed = randSeed;
-    console.log("New game room created. This room uses the seed: " + randSeed);
-}
+};
 
 //Take all input from users and figure out what to do with them.
 Game.prototype.processInput = function(input){
@@ -127,8 +122,7 @@ io.on('connection', function (socket) {
     socket.emit("connected", {
         loadFiles: serv.loadFiles, 
         id: user.id, 
-        gameRoom: user.gameRoom, 
-        users:game.users, 
+        gameRoom: user.gameRoom,
         initialSeed: game.initialSeed
     });
     //Once the game is full, all players will report back to the serv saying that they are ready to start the game.
@@ -139,21 +133,21 @@ io.on('connection', function (socket) {
             let allReady = game.users.every((user) => user.ready);
             //If all users are ready, start the game
             if(allReady){
-                game.GameState = Q.GameController.setUpGameState({
+                game.state = Q.GameController.setUpGameState({
                     mapData: game.mapData,
                     settings: game.settings,
                     users: game.users
                 });
-                game.GameState.turnOrder = Q.shuffleArray(game.GameState.players);
-                //Q.MenuController.initializeMenu(game.GameState.inputState);
-                //Q.GameController.startTurn();
+                console.log("Game started. This room uses the seed: " + game.state.initialSeed);
                 io.in(user.gameRoom).emit("allUsersReady", {
                     allReady: allReady,
                     users: game.users,
                     map: game.map,
                     settings: game.settings,
-                    turnOrder: game.GameState.turnOrder.map((player) => {return player.playerId;})
+                    turnOrder: game.state.turnOrder.map((player) => {return player.playerId;})
                 });
+                //Start the game by starting the first player's turn.
+                Q.GameController.startTurn(game.state);
             }   
         }
     });
@@ -172,7 +166,11 @@ io.on('connection', function (socket) {
     });*/
     
     socket.on("inputted", function(data){
-        
+        let response = Q.GameController.processInput(game.state, data.input);
+        if(response){
+            response.playerId = user.id;
+            io.in(user.gameRoom).emit("inputResult", response);
+        }
     });
     
     /*

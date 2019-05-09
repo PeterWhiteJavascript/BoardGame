@@ -84,7 +84,7 @@ Quintus.Utility = function(Q) {
         return loc[0] >= 0 && loc[0] < w && loc[1] >= 0 && loc[1] < h;
     };
     Q.isActiveUser = function(){
-        return Q.user.id === Q.GameState.turnOrder[0].playerId;
+        return !Q.isServer() && Q.user.id === Q.GameState.turnOrder[0].playerId;
     };
     Q.isServer = function() {
         return ! (typeof window != 'undefined' && window.document);

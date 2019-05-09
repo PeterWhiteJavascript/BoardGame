@@ -11,14 +11,12 @@ Quintus.Game = function(Q) {
                 settings: stage.options.settings,
                 users: stage.options.users
             });
+            //Set the initial turn order based on the array of ids sent by the server.
             Q.GameState.turnOrder = [];
             for(let i = 0; i < stage.options.turnOrder.length; i++){
                 Q.GameState.turnOrder.push(Q.GameState.players.find((player) => {return player.playerId === stage.options.turnOrder[i];}));
             }
-            console.log(Q.GameState.turnOrder);
-
-
-            let mapData = gameData.map;
+            
             //Insert all of the tile sprites.
             for(let i = 0; i < gameData.map.tiles.length; i++){
                 gameData.map.tiles[i].sprite = stage.insert(new Q.Tile(gameData.map.tiles[i]));
@@ -32,10 +30,12 @@ Quintus.Game = function(Q) {
 
             //Include this if we want to see the edge of the map.
             //stage.insert(new Q.MapBorder({w: mapData.data.map.w * Q.c.tileW, h: mapData.data.map.h * Q.c.tileH}));
+            
             Q.stageScene("hud", 2);
 
-
             stage.on("step", function(){
+                //There are a few things that players can do when it's not their turn.
+                //This includes checking stats/opening menus.
                 if(Q.inputs["open-sets-menu"]){
                     if(Q.stage(2).setMenu){ 
                         Q.stage(2).setMenu.destroy();
@@ -50,42 +50,42 @@ Quintus.Game = function(Q) {
                 if(!Q.isActiveUser()) return;
                 if(Q.inputs["confirm"]){
                     Q.socket.emit('inputted', {input: "confirm"});
-                    stage.trigger("pressedInput", "confirm");
+                    //stage.trigger("pressedInput", "confirm");
                     Q.inputs["confirm"] = false;
                 }
                 if(Q.inputs["back"]){
                     Q.socket.emit('inputted', {input: "back"});
-                    stage.trigger("pressedInput", "back");
+                    //stage.trigger("pressedInput", "back");
                     Q.inputs["back"] = false;
                 }
                 if(Q.inputs["left"]){
                     Q.socket.emit("inputted", {input: "left"});
-                    stage.trigger("pressedInput", "left");
+                    //stage.trigger("pressedInput", "left");
                     if(Q.preventMultipleInputs){
                         Q.inputs["left"] = false;
                     }
                 } else if(Q.inputs["right"]){
                     Q.socket.emit("inputted", {input: "right"});
-                    stage.trigger("pressedInput", "right");
+                    //stage.trigger("pressedInput", "right");
                     if(Q.preventMultipleInputs){
                         Q.inputs["right"] = false;
                     }
                 }
                 if(Q.inputs["up"]){
                     Q.socket.emit("inputted", {input: "up"});
-                    stage.trigger("pressedInput", "up");
+                    //stage.trigger("pressedInput", "up");
                     if(Q.preventMultipleInputs){
                         Q.inputs["up"] = false;
                     }
                 } else if(Q.inputs["down"]){
                     Q.socket.emit("inputted", {input: "down"});
-                    stage.trigger("pressedInput", "down");
+                    //stage.trigger("pressedInput", "down");
                     if(Q.preventMultipleInputs){
                         Q.inputs["down"] = false;
                     }
                 }
             });
-            Q.GameController.startTurn();
+            Q.GameController.startTurn(Q.GameState);
         });
     });
     Q.scene("hud", function(stage){
@@ -108,8 +108,7 @@ Quintus.Game = function(Q) {
             player.sprite.on("netValueChanged", () => {
                 playerNetValue.p.label = "NV " + player.netValue;
             });
-        }
-        //Q.GameController.buyShop(Q.GameState.turnOrder[0], Q.MapController.getTileAt([0, 8]));
+        }        
     });
     
 };
