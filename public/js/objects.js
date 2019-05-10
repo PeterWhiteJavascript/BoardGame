@@ -598,8 +598,8 @@ Quintus.Objects = function(Q) {
             this.on("inserted");
             this.on("adjustedNumber");
         },
-        adjustedNumber: function(){
-            let value = Q.MenuController.getValueFromNumberCycler();
+        adjustedNumber: function(state){
+            let value = Q.MenuController.getValueFromNumberCycler(state);
             let td = Q.GameState.currentCont.tileDetails;
             let shop = Q.stage(1).options.shop;
             let newCapital = shop.maxCapital - value;
@@ -607,7 +607,7 @@ Quintus.Objects = function(Q) {
                 newCapital = 0;
                 value = shop.maxCapital;
             }
-            let newCost = Q.MapController.generateShopCost(value, shop.rank, shop.investedCapital + newCapital, Q.MapController.getShopsOwnedInDistrict(shop));
+            let newCost = Q.MapController.generateShopCost(value, shop.rank, shop.investedCapital + newCapital, Q.MapController.getShopsOwnedInDistrict(state, shop));
             td.valueText.text.p.label =  (shop.initialValue + shop.investedCapital + value) + " G";
             td.pricesText.text.p.label = newCost + " G";
             td.capitalText.text.p.label = newCapital + " G";

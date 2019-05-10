@@ -327,7 +327,7 @@ Quintus.GameControl = function(Q) {
     Q.Sprite.extend("ShopSelector", {
         init: function(p){
             //TODO: pass this xy value it.
-            let pos = Q.getXY(p.pos || Q.GameState.turnOrder[0].loc);
+            let pos = Q.getXY(p.pos || p.state.turnOrder[0].loc);
             this._super(p,{
                 x: pos.x + Q.c.tileW / 2,
                 y: pos.y + Q.c.tileH / 2,
@@ -386,8 +386,8 @@ Quintus.GameControl = function(Q) {
             this.atTile = false;
             this.dehoverShop();
             let loc = Q.getLoc(this.p.x - Q.c.tileW / 2, this.p.y - Q.c.tileH / 4);
-            if(Q.locInBounds(loc, Q.GameState.map.data.map.w, Q.GameState.map.data.map.h)){
-                this.shopOn = Q.MapController.getTileAt(Q.GameState, loc);
+            if(Q.locInBounds(loc, this.p.state.map.data.map.w, this.p.state.map.data.map.h)){
+                this.shopOn = Q.MapController.getTileAt(this.p.state, loc);
                 if(!Q.isServer()){
                     Q.GameController.tileDetails.displayShop(this.shopOn);
                 }
@@ -677,7 +677,7 @@ Quintus.GameControl = function(Q) {
         },
         //Processes the input on the server
         processInput: function(state, input){
-            if(!state) return;//TEMP FOR TESTING;
+            if(!state) return;
             switch(state.inputState.func){
                 case "navigateMenu":
                     return Q.MenuController.processMenuInput(state, input);
@@ -685,6 +685,10 @@ Quintus.GameControl = function(Q) {
                     return Q.MenuController.processRollDieInput(state, input);
                 case "playerMovement":
                     return Q.GameController.playerMovement(state, input, state.turnOrder[0].playerId);
+                case "moveShopSelector":
+                    return Q.MenuController.processShopSelectorInput(state, input);
+                case "controlNumberCycler":
+                    return Q.MenuController.processNumberCyclerInput(state, input);
             }
         }
     });
@@ -705,17 +709,16 @@ Quintus.GameControl = function(Q) {
             //These are all custom menus,so do all of the "makeMenu" code here.
             switch(menu){
                 case "investMenu":
-                    Q.MenuController.initializeNumberCycler(props);
+                    Q.MenuController.initializeNumberCycler(state, props);
                     if(!Q.isServer()){
                         Q.stageScene("investMenu", 1, props);
-                        //Q.MenuController.turnOnNumberCyclerInputs();
                     }
+                    
                     break;
                 case "upgradeMenu":
-                    Q.MenuController.initializeConfirmer();
+                    Q.MenuController.initializeConfirmer(state);
                     if(!Q.isServer()){
                         Q.stageScene("upgradeMenu", 1, props);
-                        //Q.MenuController.turnOnConfirmerInputs();
                     }
                     
                     break;
@@ -738,61 +741,47 @@ Quintus.GameControl = function(Q) {
             let goBack, finish;
             switch(confirmType){
                 case "invest":
-                    finish = function(shop){
+                    finish = function(state, shop){
                         if(!shop) return;//TODO: play sound???
-                        //Q.MenuController.turnOffMoveSelectShopInputs();
                         Q.MenuController.makeCustomMenu(state, "investMenu", {shop: shop, cycler: 6});
-                        return {
-                            func: "turnOffMoveSelectShopInputs", 
-                            next: {
-                                menu: "investMenu",
-                                type: "custom"
-                            }
-                        };
+                        if(!Q.isServer()){
+                            state.shopSelector.sprite.destroy();
+                            Q.preventMultipleInputs = true;
+                        }
                     };
                     break;
                 case "upgrade":
-                    finish = function(shop){
-                        if(!shop) return;//TODO: play sound???
-                        //Q.MenuController.turnOffMoveSelectShopInputs();
+                    finish = function(state, shop){
+                        if(!shop) return;//TODO: play sound???E
                         Q.MenuController.makeCustomMenu(state, "upgradeMenu", {shop: shop});
-                        return {
-                            func: "turnOffMoveSelectShopInputs", 
-                            next: {
-                                menu: "upgradeMenu",
-                                type: "custom"
-                            }
-                        };
+                        if(!Q.isServer()){
+                            state.shopSelector.sprite.destroy();
+                            Q.preventMultipleInputs = true;
+                        }
                     };
                     break;
                 case "auction":
-                    finish = function(shop){
+                    finish = function(state, shop){
                         if(!shop) return;//TODO: play sound???
-                        //Q.MenuController.turnOffMoveSelectShopInputs();
                         Q.MenuController.makeCustomMenu(state, "auctionMenu", {shop: shop});
-                        return {
-                            func: "turnOffMoveSelectShopInputs", 
-                            next: {
-                                menu: "auctionMenu",
-                                type: "custom"
-                            }
-                        };
+                        if(!Q.isServer()){
+                            state.shopSelector.sprite.destroy();
+                            Q.preventMultipleInputs = true;
+                        }
                     };
                     break;
             }
             switch(backFunc){
                 case "toShopsMenu":
-                    goBack = function(backOption){
+                    goBack = function(state, backOption){
                         let backOpt = backOption === "invest" ? [0, 0] : backOption === "upgrade" ? [0, 1] : [0, 2];
-                        //Q.MenuController.turnOffMoveSelectShopInputs();
                         Q.MenuController.makeMenu(state, "shopsMenu", backOpt);
-                        return {
-                            func: "turnOffMoveSelectShopInputs", 
-                            next: {
-                                menu: "shopsMenu",
-                                type: "normal"
-                            }
-                        };
+                        if(!Q.isServer()){  
+                            state.shopSelector.sprite.destroy();
+                            Q.preventMultipleInputs = true;
+                        }
+                        state.shopSelector = false;
+                        
                     };
                     break;
             }
@@ -803,104 +792,41 @@ Quintus.GameControl = function(Q) {
                 type: "currentOwned",
                 backOption: confirmType
             };
-            state.shopSelector = new Q.ShopSelector({pos: startPos});
-            //Q.MenuController.turnOnMoveSelectShopInputs();
-            return {func: "makeMoveShopSelector", confirmType: confirmType, backFunc: backFunc, startPos: startPos};
-        },/*
-        runDeepFunction: function(props){
-            console.log(props)
-            let obj = Q.getDeepValue(Q.MenuController.inputStates, props);
-        },
-        turnOffMoveSelectShopInputs: function(state){
+            state.shopSelector = new Q.ShopSelector({pos: startPos, state: state});
             if(!Q.isServer()){
-                Q.preventMultipleInputs = true;
-                state.shopSelector.sprite.destroy();
-                if(Q.isActiveUser()){
-                    Q.stage(0).off("pressedInput", Q.MenuController, "processShopSelectorInput");
-                }
-            }
-        },
-        turnOnMoveSelectShopInputs: function(state){
-            if(!Q.isServer()){
+                Q.clearStage(1);
                 Q.preventMultipleInputs = false;
                 Q.stage(0).insert(state.shopSelector);
-                if(Q.isActiveUser()){
-                    Q.stage(0).on("pressedInput", Q.MenuController, "processShopSelectorInput");
-                    state.shopSelector.on("destroyed", function(){
-                        Q.stage(0).off("pressedInput", Q.MenuController, "processShopSelectorInput");
-                    });
-                }
             }
+            return {func: "makeMoveShopSelector", confirmType: confirmType, backFunc: backFunc, startPos: startPos};
         },
-        turnOffConfirmerInputs: function(){
-            if(!Q.isServer()){
-                Q.clearStage(1);
-                if(Q.isActiveUser()){
-                    Q.stage(0).off("pressedInput", Q.MenuController, "processConfirmerInput");
-                }
-            }
-        },
-        turnOnConfirmerInputs: function(){
-            if(Q.isActiveUser()){
-                Q.stage(0).on("pressedInput", Q.MenuController, "processConfirmerInput");
-                Q.stage(1).on("destroyed", function(){Q.stage(0).off("pressedInput", Q.MenuController, "processConfirmerInput");});
-            }
-        },
-        turnOffNumberCyclerInputs: function(){
-            if(!Q.isServer()){
-                Q.clearStage(1);
-                if(Q.isActiveUser()){
-                    Q.stage(0).off("pressedInput", Q.MenuController, "processNumberCyclerInput");
-                }
-            }
-        },
-        turnOnNumberCyclerInputs: function(){
-            if(Q.isActiveUser()){
-                Q.stage(0).on("pressedInput", Q.MenuController, "processNumberCyclerInput");
-                Q.stage(1).on("destroyed", function(){Q.stage(0).off("pressedInput", Q.MenuController, "processNumberCyclerInput");});
-            }
-        },
-        turnOffStandardInputs: function(){
-            if(!Q.isServer()){
-                Q.clearStage(1);
-                if(Q.isActiveUser()){
-                    Q.stage(0).off("pressedInput", Q.MenuController, "processInput");
-                }
-            }
-        },
-        turnOnStandardInputs: function(){
-            if(Q.isActiveUser()){
-                Q.stage(0).on("pressedInput", Q.MenuController, "processInput");
-                Q.stage(1).on("destroyed", function(){Q.stage(0).off("pressedInput", Q.MenuController, "processInput");});
-            }
-        },*/
         inputStates: {
             investMenu: {
                 func: "controlNumberCycler",
                 cycler: 6,
                 confirm: (state) => {
-                    let investAmount = Q.MenuController.getValueFromNumberCycler();
+                    let investAmount = Q.MenuController.getValueFromNumberCycler(state);
                     let maxCapital = state.inputState.shop.maxCapital;
                     let playerMoney = state.turnOrder[0].money;
                     //If the invest amount is greater than allowed, set the amount to the allowed amount.
                     if(investAmount > maxCapital || investAmount > playerMoney){
                         let newAmount = Math.min(maxCapital, playerMoney);
-                        Q.MenuController.setNumberCyclerValue(newAmount);
+                        Q.MenuController.setNumberCyclerValue(state, newAmount);
                     }
                     //Otherwise, invest that amount into the shop.
                     else {
                         if(investAmount){
                             state.inputState.shop.maxCapital -= investAmount;
                             state.inputState.shop.investedCapital += investAmount;
-                            Q.GameController.updateShopValues(state.inputState.shop);
+                            Q.GameController.updateShopValues(state, state.inputState.shop);
                             Q.GameController.changePlayerMoney(state.turnOrder[0], -investAmount);
                             state.turnOrder[0].invested++;
                         }
-                        return Q.MenuController.makeMenu("playerTurnMenu", [0, 0]);
+                        return Q.MenuController.makeMenu(state, "playerTurnMenu", [0, 0]);
                     }
                 },
                 goBack: (state) => {
-                    return Q.MenuController.inputStates.shopsMenu.cursorSelectShop("invest", "toShopsMenu", state.inputState.shop.loc);
+                    return Q.MenuController.inputStates.shopsMenu.cursorSelectShop(state, "invest", "toShopsMenu", state.inputState.shop.loc);
                 }
             },
             upgradeMenu: {
@@ -910,9 +836,7 @@ Quintus.GameControl = function(Q) {
                     console.log("upgrade")
                 },
                 goBack: (state) => {
-                    console.log("going back")
-                    //Q.MenuController.turnOffConfirmerInputs();
-                    return Q.MenuController.inputStates.shopsMenu.cursorSelectShop("upgrade", "toShopsMenu", state.inputState.shop.loc);
+                    return Q.MenuController.inputStates.shopsMenu.cursorSelectShop(state, "upgrade", "toShopsMenu", state.inputState.shop.loc);
                 }
             },
             auctionMenu: {
@@ -995,7 +919,6 @@ Quintus.GameControl = function(Q) {
                 //Gives the active player a cursor that they can move around the map to select a shop.
                 //What happens after selecting the shop is determined by the passed in type
                 cursorSelectShop: (state, finish, goBack, startPos) => {
-                    //Q.MenuController.turnOffStandardInputs();
                     return Q.MenuController.makeMoveShopSelector(state, finish, goBack, startPos);
                 }
             },
@@ -1143,7 +1066,7 @@ Quintus.GameControl = function(Q) {
                 else if(itemGrid[currentItem[1]][currentItem[0]][0] > 9) itemGrid[currentItem[1]][currentItem[0]][0] = 0;
                 if(state.currentCont){
                     state.currentCont.p.menuButtons[state.currentItem[0]][state.currentItem[1]].changeLabel(itemGrid[currentItem[1]][currentItem[0]][0]);
-                    state.currentCont.trigger("adjustedNumber");
+                    state.currentCont.trigger("adjustedNumber", state);
                 }
             } 
             //Move left/right
@@ -1187,13 +1110,18 @@ Quintus.GameControl = function(Q) {
                         if(state.turnOrder[0] === tile.ownedBy) valid = true;
                         break;
                 }
-                if(valid) state.inputState.finish(tile);
+                if(valid){
+                    state.inputState.finish(state, tile);
+                    return {func: "processShopSelectorInput", finish:tile.loc};
+                }
             } else if(input === "back"){
-                state.inputState.goBack(state.inputState.backOption);
+                state.inputState.goBack(state, state.inputState.backOption);
+                return {func: "processShopSelectorInput", back: true};
             } else {
                 state.shopSelector.trigger("moved", Q.convertDirToCoord(input));
+                return {func: "processShopSelectorInput", move: Q.convertDirToCoord(input)};
             }
-            return {func: "processShopSelectorInput", input: input};
+            return {func: "invalidAction"};
         },
         processConfirmerInput: function(state, input){
             if(input === "confirm"){

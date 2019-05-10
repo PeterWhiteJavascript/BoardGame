@@ -199,6 +199,21 @@ Q.socket.on('connected', function (connectionData) {
                 case "goBackMenu":
                     Q.GameState.inputState.goBack(state);
                     break;
+                case "makeMoveShopSelector":
+                    Q.MenuController.makeMoveShopSelector(state, data.confirmType, data.backFunc, data.startPos);
+                    break;
+                case "processShopSelectorInput":
+                    if(data.back){
+                        state.inputState.goBack(state, state.inputState.backOption);
+                    } else if(data.finish){
+                        state.inputState.finish(state, Q.MapController.getTileAt(state, data.finish));
+                    } else if(data.move){
+                        state.shopSelector.trigger("moved", data.move);
+                    }
+                    break;
+                case "controlNumberCycler":
+                    Q.MenuController.processNumberCyclerInput(state, data.input);
+                    break;
             }
         };
         Q.socket.on("inputResult", Q.applyInputResult);
