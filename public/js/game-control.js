@@ -81,10 +81,11 @@ Quintus.GameControl = function(Q) {
             }
         },
         //Run when the player presses a directional input while moving their dice roll.
-        processPlayerMovement: function(state, input, id){
+        processPlayerMovement: function(state, inputs, id){
             let invalidForwardLoc;
             let player = Q.GameController.getPlayer(state, id);
             let tileOn = Q.MapController.getTileAt(state, player.loc);
+            let input = Q.getSingleInput(inputs);
             let tileTo = tileOn.dir[input];
             //If the input wasn't a valid directional input, don't do anything.
             if(!tileTo) return false;
@@ -342,7 +343,6 @@ Quintus.GameControl = function(Q) {
             this.add("tween");
             this.on("inserted");
             this.on("moved");
-            this.on("step");
         },
         inserted: function(){
             this.sprite = this.stage.insert(new Q.Sprite({sheet:"selector-sprite", frame:1, x: this.p.x, y: this.p.y}));
@@ -351,21 +351,35 @@ Quintus.GameControl = function(Q) {
                 this.sprite.p.y = this.p.y;
             });
         },
-        tweenToTile: function(){
+        moveToTile: function(){
             let tile = this.shopOn;
             if(tile){
-                let pos = Q.getXY(tile.loc);
-                this.animate(
-                    {x: pos.x + Q.c.tileW / 2, y: pos.y + Q.c.tileH / 2}, 0.1, Q.Easing.Quadratic.InOut, 
-                        {
-                        callback: function(){
-                            this.animating = false; 
-                            this.atTile = true;
-                            this.hoverShop();
-                        }
-                    }
-                );
-                this.animating = true;
+                if(!this.animating){
+                    let pos = Q.getXY(tile.loc);
+                    let toX = pos.x + Q.c.tileW / 2;
+                    let toY = pos.y + Q.c.tileH / 2;
+
+                    this.p.dx =toX - this.p.x;
+                    this.p.dy = toY - this.p.y;
+                    this.p.destX = toX;
+                    this.p.destY = toY;
+                    this.animating = true;
+                    this.p.dt = new Date().getTime();
+                    this.p.stepDelay = 0.1;
+                    this.p.stepWait = this.p.stepDelay;
+                } else {
+                    let now = new Date().getTime();
+                    let dt = (now - this.p.dt) / 1000;
+                    this.p.stepWait -= dt;
+                    this.p.x += this.p.dx * dt / this.p.stepDelay;
+                    this.p.y += this.p.dy * dt / this.p.stepDelay;
+                    this.p.dt = now;
+                    if(this.p.stepWait > 0) {return; }
+                    this.p.x = this.p.destX;
+                    this.p.y = this.p.destY;
+                    this.animating = false;
+                    this.atTile = true;
+                }
             }
         },
         dehoverShop: function(){
@@ -378,34 +392,52 @@ Quintus.GameControl = function(Q) {
                 this.sprite.p.frame = 1;
             }
         },
-        moved: function(coord){
-            let speed = 1.5;
-            this.p.x = this.p.x + coord[0] * (4 * speed);
-            this.p.y = this.p.y + coord[1] * (3 * speed);
-            this.acceptedInput = true;
-            this.atTile = false;
-            this.dehoverShop();
-            let loc = Q.getLoc(this.p.x - Q.c.tileW / 2, this.p.y - Q.c.tileH / 4);
-            if(Q.locInBounds(loc, this.p.state.map.data.map.w, this.p.state.map.data.map.h)){
-                this.shopOn = Q.MapController.getTileAt(this.p.state, loc);
-                if(!Q.isServer()){
-                    Q.GameController.tileDetails.displayShop(this.shopOn);
+        moved: function(inputs){
+            this.p.lastX = this.p.x;
+            this.p.lastY = this.p.y;
+            let coord = [0, 0];
+            let keys = Object.keys(inputs);
+            keys.forEach((key) => {
+                let newCoord = Q.convertDirToCoord(key);
+                if(newCoord){
+                    if(newCoord[0]) coord[0] = newCoord[0];
+                    if(newCoord[1]) coord[1] = newCoord[1];
                 }
-            } else {
-                this.shopOn = false;
-                if(!Q.isServer()){
-                    Q.GameController.tileDetails.displayShop(this.shopOn);
+            });
+            if(coord[0] || coord[1]){
+                let speed = 1.5;
+                let x = this.p.x + coord[0] * (4 * speed);
+                let y = this.p.y + coord[1] * (3 * speed);
+                this.moveTo(x, y);
+                this.acceptedInput = true;
+                this.atTile = false;
+                this.dehoverShop();
+                let loc = Q.getLoc(this.p.x - Q.c.tileW / 2, this.p.y - Q.c.tileH / 4);
+                if(Q.locInBounds(loc, this.p.state.map.data.map.w, this.p.state.map.data.map.h)){
+                    this.shopOn = Q.MapController.getTileAt(this.p.state, loc);
+                    if(!Q.isServer()){
+                        Q.GameController.tileDetails.displayShop(this.shopOn);
+                    }
+                } else {
+                    this.shopOn = false;
+                    if(!Q.isServer()){
+                        Q.GameController.tileDetails.displayShop(this.shopOn);
+                    }
                 }
             }
+            this.checkSeekTile();
         },
-        step: function(){
+        moveTo: function(x, y){
+            this.p.x = x;
+            this.p.y = y;
+        },
+        checkSeekTile: function(){
             if(this.acceptedInput && this.animating){
-                this.stop();
                 this.animating = false;
                 this.atTile = false;
             }
-            if(!this.acceptedInput && !this.animating && !this.atTile){
-                this.tweenToTile();
+            if(!this.acceptedInput && !this.atTile){
+                this.moveToTile();
             }
             this.acceptedInput = false;
         }
@@ -487,8 +519,8 @@ Quintus.GameControl = function(Q) {
         stopDie: function(state, num){
             state.dice[0].stop(num);
         },
-        playerMovement: function(state, input, id){
-            let obj = Q.MapController.processPlayerMovement(state, input, id);
+        playerMovement: function(state, inputs, id){
+            let obj = Q.MapController.processPlayerMovement(state, inputs, id);
             if(obj.finish && !obj.passBy){
                 Q.GameController.askFinishMove(state, Q.GameController.getPlayer(state, id));
             }
@@ -675,20 +707,28 @@ Quintus.GameControl = function(Q) {
                 Q.GameController.tileDetails.displayShop(shop);
             }
         },
+        investInShop: function(state, investAmount){
+            if(!investAmount) return;
+            state.inputState.shop.maxCapital -= investAmount;
+            state.inputState.shop.investedCapital += investAmount;
+            Q.GameController.updateShopValues(state, state.inputState.shop);
+            Q.GameController.changePlayerMoney(state.turnOrder[0], -investAmount);
+            state.turnOrder[0].invested++;
+        },
         //Processes the input on the server
-        processInput: function(state, input){
+        processInputs: function(state, inputs){
             if(!state) return;
             switch(state.inputState.func){
                 case "navigateMenu":
-                    return Q.MenuController.processMenuInput(state, input);
+                    return Q.MenuController.processMenuInput(state, inputs);
                 case "rollDie": 
-                    return Q.MenuController.processRollDieInput(state, input);
+                    return Q.MenuController.processRollDieInput(state, inputs);
                 case "playerMovement":
-                    return Q.GameController.playerMovement(state, input, state.turnOrder[0].playerId);
+                    return Q.GameController.playerMovement(state, inputs, state.turnOrder[0].playerId);
                 case "moveShopSelector":
-                    return Q.MenuController.processShopSelectorInput(state, input);
+                    return Q.MenuController.processShopSelectorInput(state, inputs);
                 case "controlNumberCycler":
-                    return Q.MenuController.processNumberCyclerInput(state, input);
+                    return Q.MenuController.processNumberCyclerInput(state, inputs);
             }
         }
     });
@@ -811,18 +851,13 @@ Quintus.GameControl = function(Q) {
                     //If the invest amount is greater than allowed, set the amount to the allowed amount.
                     if(investAmount > maxCapital || investAmount > playerMoney){
                         let newAmount = Math.min(maxCapital, playerMoney);
-                        Q.MenuController.setNumberCyclerValue(state, newAmount);
+                        return Q.MenuController.setNumberCyclerValue(state, newAmount);
                     }
                     //Otherwise, invest that amount into the shop.
                     else {
-                        if(investAmount){
-                            state.inputState.shop.maxCapital -= investAmount;
-                            state.inputState.shop.investedCapital += investAmount;
-                            Q.GameController.updateShopValues(state, state.inputState.shop);
-                            Q.GameController.changePlayerMoney(state.turnOrder[0], -investAmount);
-                            state.turnOrder[0].invested++;
-                        }
-                        return Q.MenuController.makeMenu(state, "playerTurnMenu", [0, 0]);
+                        Q.GameController.investInShop(state, investAmount);
+                        Q.MenuController.makeMenu(state, "playerTurnMenu", [0, 0]);
+                        return {func: "finalizeInvestInShop", investAmount: investAmount};
                     }
                 },
                 goBack: (state) => {
@@ -892,13 +927,13 @@ Quintus.GameControl = function(Q) {
                     //TODO: check against the allowed for this turn
                     //TODO: instead of removal, cross it out (mark as not allowed or something)
                     if(player.invested > 0){
-                        Q.MenuController.itemGrid.splice(0, 1);
+                        state.itemGrid.splice(0, 1);
                     }
                     if(player.upgraded > 0){
-                        Q.MenuController.itemGrid.splice(1, 1);
+                        state.itemGrid.splice(1, 1);
                     }
                     if(player.auctioned > 0){
-                        Q.MenuController.itemGrid.splice(2, 1);
+                        state.itemGrid.splice(2, 1);
                     }
                 },
                 options:[
@@ -1044,9 +1079,10 @@ Quintus.GameControl = function(Q) {
                 let value = strValue[i - dif] || 0;
                 itemGrid[0][i][0] = parseInt(value);
                 if(state.currentCont){
-                    state.currentCont.p.menuButtons[i][0].changeLabel(itemGrid[0][i][0]);
+                    state.currentCont.p.menuButtons[i][0].changeLabel(state.itemGrid[0][i][0]);
                 }
             }
+            return {func: "controlNumberCycler", value: value};
         },
         getValueFromNumberCycler: function(state){
             let itemGrid = state.itemGrid;
@@ -1064,10 +1100,7 @@ Quintus.GameControl = function(Q) {
                 itemGrid[currentItem[1]][currentItem[0]][0] += coord[1];
                 if(itemGrid[currentItem[1]][currentItem[0]][0] < 0) itemGrid[currentItem[1]][currentItem[0]][0] = 9;
                 else if(itemGrid[currentItem[1]][currentItem[0]][0] > 9) itemGrid[currentItem[1]][currentItem[0]][0] = 0;
-                if(state.currentCont){
-                    state.currentCont.p.menuButtons[state.currentItem[0]][state.currentItem[1]].changeLabel(itemGrid[currentItem[1]][currentItem[0]][0]);
-                    state.currentCont.trigger("adjustedNumber", state);
-                }
+                return {func: "controlNumberCycler", num: itemGrid[currentItem[1]][currentItem[0]][0]};
             } 
             //Move left/right
             else if(coord[0]){
@@ -1076,12 +1109,9 @@ Quintus.GameControl = function(Q) {
                 }
                 while(!itemGrid[currentItem[1]][currentItem[0]]);
                 state.currentItem = currentItem;
-                if(state.currentCont){
-                    state.currentCont.p.menuButtons[state.currentItem[0]][state.currentItem[1]].selected();
-                }
+                return {func: "controlNumberCycler", item: state.currentItem};
             }
             
-            return {item: state.currentItem, func: "controlNumberCycler"};
         },
         setMenuPosition: function(state, coord){
             state.currentItem = coord;
@@ -1099,8 +1129,8 @@ Quintus.GameControl = function(Q) {
             this.setMenuPosition(state, currentItem);
             return {item: state.currentItem, func: "navigateMenu"};
         },
-        processShopSelectorInput: function(state, input){
-            if(input === "confirm"){
+        processShopSelectorInput: function(state, inputs){
+            if(inputs.confirm){
                 //Make sure the tile is valid
                 let tile = Q.MapController.getTileAt(state, Q.getLoc(state.shopSelector.p.x, state.shopSelector.p.y));
                 if(!tile) return;
@@ -1113,57 +1143,58 @@ Quintus.GameControl = function(Q) {
                 if(valid){
                     state.inputState.finish(state, tile);
                     return {func: "processShopSelectorInput", finish:tile.loc};
+                } else {
+                    return {func: "invalidAction"};
                 }
-            } else if(input === "back"){
+            } else if(inputs.back){
                 state.inputState.goBack(state, state.inputState.backOption);
                 return {func: "processShopSelectorInput", back: true};
             } else {
-                state.shopSelector.trigger("moved", Q.convertDirToCoord(input));
-                return {func: "processShopSelectorInput", move: Q.convertDirToCoord(input)};
+                state.shopSelector.trigger("moved", inputs);
+                if(state.shopSelector.p.x !== state.shopSelector.p.lastX || state.shopSelector.p.y !== state.shopSelector.p.lastY){
+                    return {func: "processShopSelectorInput", move: [state.shopSelector.p.x, state.shopSelector.p.y]};
+                }
             }
-            return {func: "invalidAction"};
         },
-        processConfirmerInput: function(state, input){
-            if(input === "confirm"){
-                Q.MenuController.confirmMenuOption(state);
-            } else if(input === "back"){
-                Q.MenuController.pressBackInMenu(state);
+        processConfirmerInput: function(state, inputs){
+            if(inputs.confirm){
+                return Q.MenuController.confirmMenuOption(state);
+            } else if(inputs.back){
+                return Q.MenuController.pressBackInMenu(state);
             }
-            return {func: "processConfirmerInput", input: input};
         },
-        processNumberCyclerInput: function(state, input){
-            if(input === "confirm"){
-                Q.MenuController.confirmMenuOption(state);
-            } else if(input === "back") { 
-                Q.MenuController.pressBackInMenu(state);
-            } else if(input === "up"){
-                this.adjustNumberCyclerPosition(state, [0, 1]);
-            } else if(input === "down"){
-                this.adjustNumberCyclerPosition(state, [0, -1]);
-            } else if(input === "left"){
-                this.adjustNumberCyclerPosition(state, [-1, 0]);
-            } else if(input === "right"){
-                this.adjustNumberCyclerPosition(state, [1, 0]);
+        processNumberCyclerInput: function(state, inputs){
+            if(inputs.confirm){
+                return Q.MenuController.confirmMenuOption(state);
+            } else if(inputs.back) { 
+                return Q.MenuController.pressBackInMenu(state);
+            } else if(inputs.up) { 
+                return this.adjustNumberCyclerPosition(state, [0, 1]);
+            } else if(inputs.down) { 
+                return this.adjustNumberCyclerPosition(state, [0, -1]);
+            } else if(inputs.left) { 
+                return this.adjustNumberCyclerPosition(state, [-1, 0]);
+            } else if(inputs.right) { 
+                return this.adjustNumberCyclerPosition(state, [1, 0]);
             }
-            return {func: "controlNumberCycler", input: input};
         },
-        processMenuInput: function(state, input){
-            if(input === "confirm"){
+        processMenuInput: function(state, inputs){
+            if(inputs.confirm){
                return Q.MenuController.confirmMenuOption(state);
-            } else if(input === "back") { 
+            } else if(inputs.back) { 
                return Q.MenuController.pressBackInMenu(state);
-            } else if(input === "up"){
+            } else if(inputs.up){
                return this.adjustMenuPosition(state, [0, -1]);
-            } else if(input === "down"){
+            } else if(inputs.down){
                return this.adjustMenuPosition(state, [0, 1]);
             }
         },
-        processRollDieInput: function(state, input){
-            if(input === "confirm"){
+        processRollDieInput: function(state, inputs){
+            if(inputs.confirm){
                 state.inputState = {func: "playerMovement"};
                 Q.GameController.allowPlayerMovement(state, state.currentMovementNum);
                 return {func: "stopDieAndAllowMovement", currentMovementNum: state.currentMovementNum};
-            } else if(input === "back"){
+            } else if(inputs.back){
                 Q.MenuController.makeMenu(state, "playerTurnMenu", [0, 0]);
                 state.currentMovementNum = false;
                 return {func: "removeDiceAndBackToPTM"};

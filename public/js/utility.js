@@ -2,6 +2,10 @@ var quintusUtility = function(Quintus) {
 "use strict";
 
 Quintus.Utility = function(Q) {
+    Q.getSingleInput = function(inputs){
+        return Object.keys(inputs)[0];
+    };
+    
     Q.convertDirToCoord = function(dir){
         switch(dir){
             case "up": return [0, -2];

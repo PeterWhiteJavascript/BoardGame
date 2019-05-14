@@ -48,42 +48,43 @@ Quintus.Game = function(Q) {
                 }
                 
                 if(!Q.isActiveUser()) return;
+                let inputs = {};
                 if(Q.inputs["confirm"]){
-                    Q.socket.emit('inputted', {input: "confirm"});
-                    //stage.trigger("pressedInput", "confirm");
+                    inputs["confirm"] = true;
                     Q.inputs["confirm"] = false;
                 }
                 if(Q.inputs["back"]){
-                    Q.socket.emit('inputted', {input: "back"});
-                    //stage.trigger("pressedInput", "back");
+                    inputs["back"] = true;
                     Q.inputs["back"] = false;
                 }
                 if(Q.inputs["left"]){
-                    Q.socket.emit("inputted", {input: "left"});
-                    //stage.trigger("pressedInput", "left");
+                    inputs["left"] = true;
                     if(Q.preventMultipleInputs){
                         Q.inputs["left"] = false;
                     }
                 } else if(Q.inputs["right"]){
-                    Q.socket.emit("inputted", {input: "right"});
-                    //stage.trigger("pressedInput", "right");
+                    inputs["right"] = true;
                     if(Q.preventMultipleInputs){
                         Q.inputs["right"] = false;
                     }
                 }
                 if(Q.inputs["up"]){
-                    Q.socket.emit("inputted", {input: "up"});
-                    //stage.trigger("pressedInput", "up");
+                    inputs["up"] = true;
                     if(Q.preventMultipleInputs){
                         Q.inputs["up"] = false;
                     }
                 } else if(Q.inputs["down"]){
-                    Q.socket.emit("inputted", {input: "down"});
-                    //stage.trigger("pressedInput", "down");
+                    inputs["down"] = true;
                     if(Q.preventMultipleInputs){
                         Q.inputs["down"] = false;
                     }
                 }
+                for (var key in inputs) {
+                    if(inputs[key] === false) {
+                        delete inputs[key];
+                    }
+                }
+                Q.socket.emit('inputted', inputs);
             });
             Q.GameController.startTurn(Q.GameState);
         });

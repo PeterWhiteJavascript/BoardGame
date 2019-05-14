@@ -68,7 +68,7 @@ Server.prototype.addUserToGame = function(user, socket, room){
             map: "example-map.json",
             settings:{
                 mode: "ffa",
-                numOfPlayers: 1
+                numOfPlayers: 2
             }
         });
     } else {
@@ -160,88 +160,14 @@ io.on('connection', function (socket) {
         
         
     });
-    /*
-    socket.on('update', function (data) {
-        socket.broadcast.emit('updated', data);
-    });*/
     
     socket.on("inputted", function(data){
-        let response = Q.GameController.processInput(game.state, data.input);
+        let response = Q.GameController.processInputs(game.state, data);
         if(response){
             response.playerId = user.id;
             io.in(user.gameRoom).emit("inputResult", response);
         }
     });
-    
-    /*
-    //This function takes inputs from the client and processes them.
-    socket.on("inputted", function(data){
-        
-        
-        let props = {};
-        switch(Q.GameState.inputState.func){
-            case "moveShopSelector":
-                props = Q.MenuController.processShopSelectorInput(data.input);
-                if(props && props.func){
-                    socket.broadcast.to(gameRoom).emit("inputResult", {key: data.input, playerId: user.id, func: props.func, props: props});
-                }
-                break;
-            case "rollDie":
-                //Roll the die
-                if(data.input === "confirm"){
-                    let num = Q.GameState.currentMovementNum;
-                    Q.GameController.allowPlayerMovement(num);
-                    props.move = num;
-                    socket.broadcast.to(gameRoom).emit("inputResult", {key: data.input, playerId: user.id, func: "stopDieAndAllowMovement", props: props});
-                    Q.GameState.inputState = {func: "playerMovement"};
-                } 
-                //Go back to the main menu
-                else if(data.input === "back"){
-                    props.num = 0;
-                    socket.broadcast.to(gameRoom).emit("inputResult", {key: data.input, playerId: user.id, func: "removeDiceAndBackToPTM", props: props});
-                    Q.GameState.inputState = Q.MenuController.inputStates.playerTurnMenu;
-                    Q.MenuController.initializeMenu(Q.GameState.inputState);
-                }
-                
-                break;
-            case "navigateMenu":
-                props = Q.MenuController.processInput(data.input);
-                if(props && props.func){
-                    socket.broadcast.to(gameRoom).emit("inputResult", {key: data.input, playerId: user.id, func: props.func, props: props});
-                    //Use this when serv response is required (random numbers)
-                    if(props.self){
-                        socket.emit("inputResult", {key: data.input, playerId: user.id, func: props.func, props: props});
-                    }
-                }
-                break;
-            case "controlNumberCycler":
-                props = Q.MenuController.processNumberCyclerInput(data.input);
-                if(props && props.func){
-                    socket.broadcast.to(gameRoom).emit("inputResult", {key: data.input, playerId: user.id, func: props.func, props: props});
-                    //Use this when serv response is required (random numbers)
-                    if(props.self){
-                        socket.emit("inputResult", {key: data.input, playerId: user.id, func: props.func, props: props});
-                    }
-                }
-                break;
-            //When the player is moving after the has been rolled
-            case "playerMovement":
-                let obj = Q.MapController.processPlayerMovement(data.input, user.id);
-                if(obj){
-                    props.input = data.input;
-                    props.locTo = obj.loc;
-                    if(obj.finish && !obj.passBy){
-                        props.finish = obj.finish;
-                        Q.GameState.inputState = Q.MenuController.inputStates.menuMovePlayer;
-                        ////This is not added to any stage/scene since those don't exist on the serv.
-                        Q.MenuController.initializeMenu(Q.GameState.inputState);
-                    }
-                    socket.broadcast.to(gameRoom).emit("inputResult", {key: data.input, playerId: user.id, func: "playerMovement", props: props});
-                }
-                break;
-        }
-    });
-    */
 });
 
 

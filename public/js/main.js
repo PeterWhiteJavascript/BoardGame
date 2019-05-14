@@ -47,79 +47,6 @@ Q.socket.on('connected', function (connectionData) {
         Q.c = Q.assets["data/constants/data.json"];
         Q.setUpAnimations();
         
-        Q.socket.on('updated', function (data) {
-
-        });
-        /*
-        //This is the actual result of user actions, shown on all clients except the one who did the action
-        Q.processInputResult = function(data){
-            let player;
-            console.log(data)
-            switch(data.func){
-                case "processShopSelectorInput":
-                    Q.MenuController.processShopSelectorInput(data.props.input);
-                    break;
-                case "controlNumberCycler":
-                    Q.MenuController.processNumberCyclerInput(data.props.input);
-                    break;
-                case "makeMoveShopSelector":
-                    Q.MenuController.turnOffStandardInputs();
-                    Q.MenuController.makeMoveShopSelector(data.props.confirmType, data.props.backFunc, data.props.startPos);
-                    break;
-                case "moveShopSelectorResult":
-                    console.log(data)
-                    break;
-                case "rollDie":
-                    Q.GameState.currentMovementNum = data.props.roll;
-                    Q.GameController.startRollingDie(1, Q.GameState.turnOrder[0].sprite);
-                    break;
-                case "stopDieAndAllowMovement":
-                    Q.GameController.stopDie(data.props.move);
-                    //TODO: Once all dice are rolled, allow the player movement (right now it just does one die).
-                    Q.GameController.allowPlayerMovement(data.props.move);
-                    break;
-                case "removeDiceAndBackToPTM":
-                    Q.GameController.removeDice();
-                    data.func = "loadOptionsMenu";
-                    data.props.menu = "playerTurnMenu";
-                    data.props.selected = [0, 0];
-                    Q.processInputResult(data);
-                    break;
-                case "playerMovement":
-                    //If there are dice showing, remove them.
-                    if(Q.GameController.dice) Q.GameController.removeDice();
-                    Q.GameController.playerMovement(data.key, data.playerId);
-                    break;
-                case "loadOptionsMenu":
-                    Q.MenuController.makeMenu(data.props.menu, data.props.selected);
-                    break;
-                case "navigateMenu":
-                    let pos = data.props.pos.item;
-                    Q.MenuController.currentItem = pos;
-                    Q.MenuController.currentCont.p.menuButtons[Q.MenuController.currentItem[1]][Q.MenuController.currentItem[0]].hover();
-                    break;
-                //If the player says yes to ending their move here.
-                case "playerConfirmMove":
-                    Q.GameController.playerConfirmMove(data.playerId);
-                    break;
-                case "buyShop":
-                    Q.GameController.buyShop(Q.GameController.getPlayer(data.playerId), Q.MapController.getTileAt(data.props.shopLoc));
-                    Q.GameController.endTurn();
-                    break;
-                case "buyOutShop":
-                    Q.GameController.buyOutShop(Q.GameController.getPlayer(data.playerId), Q.MapController.getTileAt(data.props.shopLoc));
-                    Q.GameController.endTurn();
-                    break;
-                case "endTurn":
-                    Q.GameController.endTurn();
-                    break;
-                //If the player says they don't want to end their move here.
-                case "playerGoBackMove":
-                    Q.MenuController.turnOffStandardInputs();
-                    Q.GameController.playerGoBackMove(data.playerId);
-                    break;
-            }
-        };*/
         Q.applyInputResult = function(data){
             console.log(data);
             let state = Q.GameState;
@@ -208,11 +135,25 @@ Q.socket.on('connected', function (connectionData) {
                     } else if(data.finish){
                         state.inputState.finish(state, Q.MapController.getTileAt(state, data.finish));
                     } else if(data.move){
-                        state.shopSelector.trigger("moved", data.move);
+                        state.shopSelector.moveTo(data.move[0], data.move[1]);
                     }
                     break;
                 case "controlNumberCycler":
-                    Q.MenuController.processNumberCyclerInput(state, data.input);
+                    if(data.item){
+                        state.currentItem = data.item;
+                        state.currentCont.p.menuButtons[state.currentItem[0]][state.currentItem[1]].selected();
+                    } else if(data.num >= 0){
+                        state.itemGrid[state.currentItem[1]][state.currentItem[0]][0] = data.num;
+                        state.currentCont.p.menuButtons[state.currentItem[0]][state.currentItem[1]].changeLabel(state.itemGrid[state.currentItem[1]][state.currentItem[0]][0]);
+                        state.currentCont.trigger("adjustedNumber", state);
+                    } else if(data.value >= 0){
+                        Q.MenuController.setNumberCyclerValue(state, data.value);
+                        state.currentCont.trigger("adjustedNumber", state);
+                    }
+                    break;
+                case "finalizeInvestInShop":
+                    Q.GameController.investInShop(state, data.investAmount);
+                    Q.MenuController.makeMenu(state, "playerTurnMenu", [0, 0]);
                     break;
             }
         };

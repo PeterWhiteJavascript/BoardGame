@@ -600,14 +600,14 @@ Quintus.Objects = function(Q) {
         },
         adjustedNumber: function(state){
             let value = Q.MenuController.getValueFromNumberCycler(state);
-            let td = Q.GameState.currentCont.tileDetails;
+            let td = state.currentCont.tileDetails;
             let shop = Q.stage(1).options.shop;
             let newCapital = shop.maxCapital - value;
             if(newCapital < 0) {
                 newCapital = 0;
                 value = shop.maxCapital;
             }
-            let newCost = Q.MapController.generateShopCost(value, shop.rank, shop.investedCapital + newCapital, Q.MapController.getShopsOwnedInDistrict(state, shop));
+            let newCost = Q.MapController.generateShopCost(shop.initialValue, shop.rank, shop.investedCapital + value, Q.MapController.getShopsOwnedInDistrict(state, shop).length);
             td.valueText.text.p.label =  (shop.initialValue + shop.investedCapital + value) + " G";
             td.pricesText.text.p.label = newCost + " G";
             td.capitalText.text.p.label = newCapital + " G";
