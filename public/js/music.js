@@ -38,8 +38,11 @@ Q.GameObject.extend("audioController",{
     stopMusic:function(music){
         if(!music) music = this.currentMusic;
         this.lastMusic = this.currentMusic;
-        Q.audio.stop("bgm/"+music);
+        Q.audio.stop("audio/bgm/" + music + ".mp3");
         this.currentMusic = false;
+    },
+    stopSound: function(sound){
+        Q.audio.stop("audio/sfx/" + sound + ".mp3");
     },
     checkMusicEnabled:function(){
         if(Q.OptionsController.options.musicEnabled){
@@ -50,10 +53,18 @@ Q.GameObject.extend("audioController",{
             this.currentMusic = false;
         }
     },
+    checkSoundIsPlaying: function(sound){
+        for(var key in Q.audio.playingSounds) {
+            var snd = Q.audio.playingSounds[key];
+            if(snd.assetName === "audio/sfx/" + sound + ".mp3") {
+                return true;
+            }
+        }
+    },
     playSound:function(sound, callback){
         if(Q.OptionsController.options.soundEnabled){
             if(sound.length){
-                Q.audio.play("sfx/"+sound, {volume:Q.OptionsController.options.soundVolume, callback:callback});
+                Q.audio.play("audio/sfx/" + sound + ".mp3", {volume:Q.OptionsController.options.soundVolume, callback:callback});
             }
         }
     },

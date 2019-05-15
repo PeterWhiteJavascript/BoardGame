@@ -359,7 +359,7 @@ Quintus.GameControl = function(Q) {
                     let toX = pos.x + Q.c.tileW / 2;
                     let toY = pos.y + Q.c.tileH / 2;
 
-                    this.p.dx =toX - this.p.x;
+                    this.p.dx = toX - this.p.x;
                     this.p.dy = toY - this.p.y;
                     this.p.destX = toX;
                     this.p.destY = toY;
@@ -383,14 +383,15 @@ Quintus.GameControl = function(Q) {
             }
         },
         dehoverShop: function(){
-            if(this.sprite){
-                this.sprite.p.frame = 0;
-            }
+            if(this.sprite) this.sprite.p.frame = 0;
+            this.p.hovering = false;
         },
         hoverShop: function(){
             if(this.sprite){
                 this.sprite.p.frame = 1;
+                Q.AudioController.playSound("hover-shop");
             }
+            this.p.hovering = true;
         },
         moved: function(inputs){
             this.p.lastX = this.p.x;
@@ -427,9 +428,15 @@ Quintus.GameControl = function(Q) {
             }
             this.checkSeekTile();
         },
-        moveTo: function(x, y){
+        moveTo: function(x, y, hover){
             this.p.x = x;
             this.p.y = y;
+            if(hover && !this.p.hovering){
+                this.hoverShop();
+                
+            } else {
+                this.dehoverShop();
+            }
         },
         checkSeekTile: function(){
             if(this.acceptedInput && this.animating){
@@ -502,17 +509,25 @@ Quintus.GameControl = function(Q) {
             });
         },
         startRollingDie: function(state, num, player){
-            Q.clearStage(1);
+            Q.clearStage(2);
             state.dice = [];
             for(let i = 0; i < num; i++){
-                state.dice.push(Q.stage(0).insert(new Q.Die({x: player.p.x, y: player.p.y - Q.c.tileH * 2})));
+                state.dice.push(Q.stage(1).insert(new Q.Die({x: player.p.x, y: player.p.y - Q.c.tileH * 2})));
             }
+            function soundOn(){
+                if(state.dice && !state.currentMovementNum){
+                    if(!Q.AudioController.checkSoundIsPlaying("roll-die")){
+                        Q.AudioController.playSound("roll-die", soundOn);
+                    }
+                }
+            }
+            soundOn();
         },
         //Removes all dice
         removeDice: function(state){
             if(state.dice.length){
                 state.dice.forEach((die) => {die.removeDie();});
-                state.dice = [];
+                state.dice = false;
             }
         },
         //Stops the first die in the array. Usually there will be only one die, but sometimes there could be two due to an item or something.
@@ -529,8 +544,10 @@ Quintus.GameControl = function(Q) {
         allowPlayerMovement: function(state, num){
             state.currentMovementNum = num;
             state.currentMovementPath = [Q.MapController.getTileAt(state, state.turnOrder[0].loc)];
-            if(state.turnOrder[0].sprite){
+            if(!Q.isServer()){
                 state.turnOrder[0].sprite.showMovementDirections();
+                Q.AudioController.stopSound("roll-die");
+                Q.AudioController.playSound("throw-die");
             }
         },
         //After the player says "yes" to stopping here.
@@ -596,8 +613,9 @@ Quintus.GameControl = function(Q) {
         },
         movePlayer: function(player, tileTo){
             player.loc = tileTo.loc;
-            if(player.sprite){
+            if(!Q.isServer()){
                 player.sprite.moveTo(tileTo.loc);
+                Q.AudioController.playSound("step-on-tile");
             }
         },
         getPlayer: function(state, id){
@@ -659,7 +677,7 @@ Quintus.GameControl = function(Q) {
             player.invested = 0;
             Q.MenuController.makeMenu(state, "playerTurnMenu", [0, 0]);
             if(Q.isActiveUser()){
-                Q.stage(0).insert(new Q.TurnAnimation());
+                Q.stage(1).insert(new Q.TurnAnimation());
                 Q.inputs["confirm"] = false;
             }
         },
@@ -670,6 +688,7 @@ Quintus.GameControl = function(Q) {
             if(!Q.isServer()){
                 shop.sprite.updateTile(player.color);
                 Q.GameController.tileDetails.displayShop(shop);
+                Q.AudioController.playSound("purchase-item");
             }
         },
         buyOutShop: function(state, player, shop){
@@ -679,6 +698,7 @@ Quintus.GameControl = function(Q) {
             Q.GameController.changePlayerNetValue(player, -shop.value * 4);
             if(!Q.isServer()){
                 shop.sprite.updateTile(player.color);
+                Q.AudioController.playSound("purchase-item");
             }
             shop.ownedBy = player;
             Q.GameController.adjustShopValues(state, player, shop);
@@ -740,7 +760,7 @@ Quintus.GameControl = function(Q) {
             state.inputState = dialogue ? {...dialogue, ...Q.MenuController.inputStates[menu]} : Q.MenuController.inputStates[menu];
             Q.MenuController.initializeMenu(state, state.inputState);
             if(!Q.isServer()){
-                Q.stageScene("dialogue", 1, {dialogue: state.inputState, state: state});
+                Q.stageScene("dialogue", 2, {dialogue: state.inputState, state: state});
             }
         },
         makeCustomMenu: function(state, menu, props){
@@ -751,14 +771,14 @@ Quintus.GameControl = function(Q) {
                 case "investMenu":
                     Q.MenuController.initializeNumberCycler(state, props);
                     if(!Q.isServer()){
-                        Q.stageScene("investMenu", 1, props);
+                        Q.stageScene("investMenu", 2, props);
                     }
                     
                     break;
                 case "upgradeMenu":
                     Q.MenuController.initializeConfirmer(state);
                     if(!Q.isServer()){
-                        Q.stageScene("upgradeMenu", 1, props);
+                        Q.stageScene("upgradeMenu", 2, props);
                     }
                     
                     break;
@@ -773,7 +793,7 @@ Quintus.GameControl = function(Q) {
             Q.MenuController.initializeMenu(state, state.inputState, selected);
             if(state.inputState.preDisplay) state.inputState.preDisplay(state);
             if(!Q.isServer()){
-                Q.stageScene("menu", 1, {menu: state.inputState, selected: selected || [0, 0], options: state.itemGrid, state: state});
+                Q.stageScene("menu", 2, {menu: state.inputState, selected: selected || [0, 0], options: state.itemGrid, state: state});
             }
             return state.inputState;
         },
@@ -834,9 +854,9 @@ Quintus.GameControl = function(Q) {
             };
             state.shopSelector = new Q.ShopSelector({pos: startPos, state: state});
             if(!Q.isServer()){
-                Q.clearStage(1);
+                Q.clearStage(2);
                 Q.preventMultipleInputs = false;
-                Q.stage(0).insert(state.shopSelector);
+                Q.stage(1).insert(state.shopSelector);
             }
             return {func: "makeMoveShopSelector", confirmType: confirmType, backFunc: backFunc, startPos: startPos};
         },
@@ -908,7 +928,7 @@ Quintus.GameControl = function(Q) {
                 },
                 showShopsMenu: (state) => {
                     Q.MenuController.makeMenu(state, "shopsMenu");
-                    return {func: "loadOptionsMenu", menu: "shopsMenu", selected: [0, 0]};
+                    return {func: "loadOptionsMenu", menu: "shopsMenu", selected: [0, 0], playSound: true};
                 },
                 viewBoard: () => {
                     
@@ -946,8 +966,8 @@ Quintus.GameControl = function(Q) {
                     let selected = [0, 1];
                     Q.MenuController.initializeMenu(state, state.inputState, selected);
                     if(!Q.isServer()){
-                        Q.stageScene("menu", 1, {menu: state.inputState, selected: selected, options: state.itemGrid, state: state});
-                        //Q.MenuController.turnOnStandardInputs();
+                        Q.stageScene("menu", 2, {menu: state.inputState, selected: selected, options: state.itemGrid, state: state});
+                        Q.AudioController.playSound("change-menu");
                     }
                     return {func: "loadOptionsMenu", selected: selected, menu: "playerTurnMenu"};
                 },
@@ -1117,6 +1137,7 @@ Quintus.GameControl = function(Q) {
             state.currentItem = coord;
             if(state.currentCont){
                 state.currentCont.p.menuButtons[state.currentItem[1]][state.currentItem[0]].hover();
+                Q.AudioController.playSound("option-hover");
             }
         },
         adjustMenuPosition: function(state, coord){
@@ -1152,7 +1173,9 @@ Quintus.GameControl = function(Q) {
             } else {
                 state.shopSelector.trigger("moved", inputs);
                 if(state.shopSelector.p.x !== state.shopSelector.p.lastX || state.shopSelector.p.y !== state.shopSelector.p.lastY){
-                    return {func: "processShopSelectorInput", move: [state.shopSelector.p.x, state.shopSelector.p.y]};
+                    let props = [state.shopSelector.p.x, state.shopSelector.p.y ];
+                    if(state.shopSelector.atTile) props.push(true);
+                    return {func: "processShopSelectorInput", move: props};
                 }
             }
         },

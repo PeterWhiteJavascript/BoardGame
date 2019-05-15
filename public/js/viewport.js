@@ -62,7 +62,7 @@ Quintus.Viewport = function(Q){
         }
     });
     Q.viewFollow=function(obj, stage){
-        if(!stage){stage=Q.stage(0);};
+        if(!stage){stage = Q.stage(1);};
         var minX=0;
         var maxX=(stage.mapWidth*Q.tileW)*stage.viewport.scale;
         var minY=0;

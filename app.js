@@ -101,12 +101,6 @@ let Game = function(p){
     this.mapData = JSON.parse(fs.readFileSync(serv.filesFolder + "data/maps/" + this.map));
 };
 
-//Take all input from users and figure out what to do with them.
-Game.prototype.processInput = function(input){
-    
-};
-
-
 let serv = new Server();
 let Q = new Quintus().include("Sprites, Scenes, 2D, GameControl, Utility");
 Q.c = serv.constants;

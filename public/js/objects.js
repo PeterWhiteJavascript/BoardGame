@@ -14,7 +14,7 @@ Quintus.Objects = function(Q) {
             this.tileData = p;
             Q.setXY(this);
             this.on("inserted");
-            this.p.backgroundColor = Q.stage(0).insert(new Q.UI.Container({x: this.p.x + 3, y: this.p.y + 3, h: this.p.h - 6, w: this.p.w - 6, fill: "lightgrey", cx: 0, cy:0}));
+            this.p.backgroundColor = Q.stage(1).insert(new Q.UI.Container({x: this.p.x + 3, y: this.p.y + 3, h: this.p.h - 6, w: this.p.w - 6, fill: "lightgrey", cx: 0, cy:0}));
         },
         inserted: function(){
             switch(this.p.type){
@@ -183,18 +183,13 @@ Quintus.Objects = function(Q) {
         },
         stopDie: function(input){
             if(input === "confirm"){
-                Q.stage(0).off("pressedInput", this, "stopDie");
                 Q.processInputResult({func: "stopDieAndAllowMovement", props:{move: Q.GameState.currentMovementNum}});
             } else if(input === "back"){
-                Q.stage(0).off("pressedInput", this, "stopDie");
                 this.removeDie();
                 Q.processInputResult({func: "removeDiceAndBackToPTM", props:{num: 0}});
             }
         },
         removeDie: function(){
-            //this.stage.off("pressedInput", this, "removeDie");
-            //TODO: figure out if this bind is removed by looking in stage.binds after more than one die has been rolle.d
-            //If it's removed, great. Otherwise, put in settimeout
             this.stage.remove(this);
         },
         stop: function(num){
@@ -601,14 +596,14 @@ Quintus.Objects = function(Q) {
         adjustedNumber: function(state){
             let value = Q.MenuController.getValueFromNumberCycler(state);
             let td = state.currentCont.tileDetails;
-            let shop = Q.stage(1).options.shop;
+            let shop = Q.stage(2).options.shop;
             let newCapital = shop.maxCapital - value;
             if(newCapital < 0) {
                 newCapital = 0;
                 value = shop.maxCapital;
             }
             let newCost = Q.MapController.generateShopCost(shop.initialValue, shop.rank, shop.investedCapital + value, Q.MapController.getShopsOwnedInDistrict(state, shop).length);
-            td.valueText.text.p.label =  (shop.initialValue + shop.investedCapital + value) + " G";
+            td.valueText.text.p.label =  (shop.initialValue * shop.rank + shop.investedCapital + value) + " G";
             td.pricesText.text.p.label = newCost + " G";
             td.capitalText.text.p.label = newCapital + " G";
             

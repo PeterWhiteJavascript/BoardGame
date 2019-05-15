@@ -2,8 +2,14 @@ var quintusGame = function(Quintus) {
 "use strict";
 
 Quintus.Game = function(Q) {
+    Q.scene("background", function(stage){
+        //This is very temporary. Should probably use something like a .tmx drawn on the 1 stage.
+         let background = stage.insert(new Q.Sprite({asset: "images/backgrounds/background-01.jpg", x: 0, y: 0, w: Q.width, h: Q.height, cx:0 ,cy:0, scale: 1.3}));
+         console.log(background)
+    });
     //Client side game tracking. Any visuals are displayed here.
     Q.scene("game", function(stage){
+        Q.stageScene("background", 0);
         Q.AudioController.playMusic(stage.options.mapData.map.bgm, () => {
             Q.preventMultipleInputs = true;
             let gameData = Q.GameState = Q.GameController.setUpGameState({
@@ -31,17 +37,17 @@ Quintus.Game = function(Q) {
             //Include this if we want to see the edge of the map.
             //stage.insert(new Q.MapBorder({w: mapData.data.map.w * Q.c.tileW, h: mapData.data.map.h * Q.c.tileH}));
             
-            Q.stageScene("hud", 2);
+            Q.stageScene("hud", 3);
 
             stage.on("step", function(){
                 //There are a few things that players can do when it's not their turn.
                 //This includes checking stats/opening menus.
                 if(Q.inputs["open-sets-menu"]){
-                    if(Q.stage(2).setMenu){ 
-                        Q.stage(2).setMenu.destroy();
-                        Q.stage(2).setMenu = false;
+                    if(Q.stage(3).setMenu){ 
+                        Q.stage(3).setMenu.destroy();
+                        Q.stage(3).setMenu = false;
                     } else {
-                        Q.stage(2).setMenu = Q.stage(2).insert(new Q.SetsMenu({player: Q.GameState.turnOrder[0]}));
+                        Q.stage(3).setMenu = Q.stage(3).insert(new Q.SetsMenu({player: Q.GameState.turnOrder[0]}));
                     }
                     
                     Q.inputs["open-sets-menu"] = false;

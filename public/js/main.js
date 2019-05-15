@@ -32,17 +32,18 @@ Q.socket.on('connected', function (connectionData) {
     Q.user.gameRoom = connectionData.gameRoom;
     //Load the files that need to be loaded (this is found out server side)
     Q.load(connectionData.loadFiles.join(","),function(){
-        
         Q.AudioController = new Q.audioController();
+        
         Q.OptionsController = new Q.optionsController();
         Q.OptionsController.options = {
             menuColor: "#111",
             textColor: "#EEE",
-            musicEnabled: false,
+            musicEnabled: true,
             musicVolume: 0.1,
-            soundEnabled: false,
-            soundVolume: 0.1
+            soundEnabled: true,
+            soundVolume: 1
         };//GDATA.saveFiles["save-file1.json"].options;
+        
         
         Q.c = Q.assets["data/constants/data.json"];
         Q.setUpAnimations();
@@ -57,6 +58,9 @@ Q.socket.on('connected', function (connectionData) {
                     break;
                 case "loadOptionsMenu":
                     Q.MenuController.makeMenu(state, data.menu, data.selected);
+                    if(data.playSound){
+                        Q.AudioController.playSound("change-menu");
+                    }
                     break;
                 case "rollDie":
                     Q.GameController.startRollingDie(state, 1, player.sprite);
@@ -68,6 +72,8 @@ Q.socket.on('connected', function (connectionData) {
                 case "removeDiceAndBackToPTM":
                     Q.GameController.removeDice(state);
                     Q.applyInputResult({func: "loadOptionsMenu", menu: "playerTurnMenu", selected: [0, 0]});
+                    state.currentMovementNum = false;
+                    Q.AudioController.stopSound("roll-die");
                     break;
                 case "playerConfirmMove":
                     Q.GameController.playerConfirmMove(state, data.playerId);
@@ -89,24 +95,26 @@ Q.socket.on('connected', function (connectionData) {
                     }
                     break;
                 case "playerGoBackMove":
-                    Q.clearStage(1);
+                    Q.clearStage(2);
                     data.func = "playerMovement";
                     player.sprite.showMovementDirections();
                     Q.GameController.playerGoBackMove(state, player.playerId);
                     break;
                 case "purchaseSet":
-                    Q.clearStage(1);
+                    Q.clearStage(2);
                     if(data.num >= 0){
                         Q.GameController.purchaseSet(state, data.num, data.playerId);
+                        Q.AudioController.playSound("purchase-item");
                     }
                     if(data.finish){
                         Q.GameController.askFinishMove(state, player);
                     }
                     break;
                 case "purchaseSetItem":
-                    Q.clearStage(1);
+                    Q.clearStage(2);
                     if(data.loc){
                         Q.GameController.purchaseSetItem(state, data.loc, data.playerId);
+                        Q.AudioController.playSound("purchase-item");
                     } 
                     if(data.finish){
                         Q.GameController.askFinishMove(state, player);
@@ -135,17 +143,19 @@ Q.socket.on('connected', function (connectionData) {
                     } else if(data.finish){
                         state.inputState.finish(state, Q.MapController.getTileAt(state, data.finish));
                     } else if(data.move){
-                        state.shopSelector.moveTo(data.move[0], data.move[1]);
+                        state.shopSelector.moveTo(data.move[0], data.move[1], data.move[2]);
                     }
                     break;
                 case "controlNumberCycler":
                     if(data.item){
                         state.currentItem = data.item;
                         state.currentCont.p.menuButtons[state.currentItem[0]][state.currentItem[1]].selected();
+                        Q.AudioController.playSound("change-number-cycler");
                     } else if(data.num >= 0){
                         state.itemGrid[state.currentItem[1]][state.currentItem[0]][0] = data.num;
                         state.currentCont.p.menuButtons[state.currentItem[0]][state.currentItem[1]].changeLabel(state.itemGrid[state.currentItem[1]][state.currentItem[0]][0]);
                         state.currentCont.trigger("adjustedNumber", state);
+                        Q.AudioController.playSound("change-number-cycler");
                     } else if(data.value >= 0){
                         Q.MenuController.setNumberCyclerValue(state, data.value);
                         state.currentCont.trigger("adjustedNumber", state);
@@ -154,6 +164,7 @@ Q.socket.on('connected', function (connectionData) {
                 case "finalizeInvestInShop":
                     Q.GameController.investInShop(state, data.investAmount);
                     Q.MenuController.makeMenu(state, "playerTurnMenu", [0, 0]);
+                    Q.AudioController.playSound("purchase-item");
                     break;
             }
         };
@@ -161,7 +172,7 @@ Q.socket.on('connected', function (connectionData) {
         
         Q.socket.emit("readyToStartGame");
         Q.socket.on("allUsersReady", function(data){
-            Q.stageScene("game", 0, {
+            Q.stageScene("game", 1, {
                 mapData: Q.assets["data/maps/"+data.map], 
                 settings: data.settings, 
                 host: data.host,
