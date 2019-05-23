@@ -38,7 +38,7 @@ Q.socket.on('connected', function (connectionData) {
         Q.OptionsController.options = {
             menuColor: "#111",
             textColor: "#EEE",
-            musicEnabled: true,
+            musicEnabled: false,
             musicVolume: 0.1,
             soundEnabled: true,
             soundVolume: 1
@@ -53,20 +53,36 @@ Q.socket.on('connected', function (connectionData) {
             let state = Q.GameState;
             let player = Q.GameController.getPlayer(state, data.playerId);
             switch(data.func){
+                case "invalidAction":
+                    Q.AudioController.playSound("invalid-action");
+                    break;
+                case "checkFinishMove":
+                    Q.clearStage(2);
+                    Q.GameController.checkFinishMove(state, player);
+                    break;
+                case "useItem":
+                    Q.GameController.useItem(state, data.itemIdx);
+                    break;
+                case "makeDialogueMenu":
+                    Q.MenuController.makeDialogueMenu(state, data.menu);
+                    break;
+                case "makeCustomMenu":
+                    state.inputState = Q.MenuController.makeCustomMenu(state, data.menu, data.props);
+                    break;
                 case "navigateMenu":
                     Q.MenuController.setMenuPosition(state, data.item);
                     break;
                 case "loadOptionsMenu":
-                    Q.MenuController.makeMenu(state, data.menu, data.selected);
+                    state.inputState = Q.MenuController.makeMenu(state, data.menu, data.selected);
                     if(data.playSound){
                         Q.AudioController.playSound("change-menu");
                     }
                     break;
                 case "rollDie":
-                    Q.GameController.startRollingDie(state, 1, player.sprite);
+                    Q.GameController.startRollingDie(state, data.rollsNums, player.sprite);
                     break;
-                case "stopDieAndAllowMovement":
-                    Q.GameController.stopDie(state, data.currentMovementNum);
+                case "stopDiceAndAllowMovement":
+                    Q.GameController.stopDice(state, data.rollsNums);
                     Q.GameController.allowPlayerMovement(state, data.currentMovementNum);
                     break;
                 case "removeDiceAndBackToPTM":
@@ -77,6 +93,7 @@ Q.socket.on('connected', function (connectionData) {
                     break;
                 case "playerConfirmMove":
                     Q.GameController.playerConfirmMove(state, data.playerId);
+                    Q.AudioController.playSound("change-menu");
                     break;
                 case "playerMovement":
                     var tile = Q.MapController.getTileAt(state, data.loc);
@@ -86,7 +103,9 @@ Q.socket.on('connected', function (connectionData) {
                     if(data.direction === "forward"){
                         Q.GameController.movePlayer(player, tile);
                         state.currentMovementPath.push(tile);
-                        Q.MapController.checkPassByTile(state, player, tile, data.finish);
+                        player.tileTo = tile;
+                        player.finish = data.finish;
+                        Q.MapController.checkPassByTile(state, player);
                     } else if(data.direction === "back"){
                         Q.GameController.playerGoBackMove(state, player.playerId);
                     }
@@ -120,8 +139,21 @@ Q.socket.on('connected', function (connectionData) {
                         Q.GameController.askFinishMove(state, player);
                     }
                     break;
+                case "purchaseItem":
+                    Q.clearStage(2);
+                    if(data.item){
+                        Q.GameController.purchaseItem(state, Object.assign({id: data.item.id, cost: data.item.cost}, Q.c.items[data.item.id]), player.playerId);
+                    }
+                    if(data.finish){
+                        Q.GameController.askFinishMove(state, player);
+                    }
+                    break;
                 case "buyShop":
-                    Q.GameController.buyShop(state, Q.GameController.getPlayer(state, data.playerId), Q.MapController.getTileAt(state, data.loc));
+                    if(data.itemIdx >= 0){
+                        player.items.splice(data.itemIdx, 1);
+                    }
+                    var shop = Q.MapController.getTileAt(state, data.loc);
+                    Q.GameController.buyShop(state, Q.GameController.getPlayer(state, data.playerId), shop, data.couponValue);
                     Q.GameController.endTurn(state);
                     break;
                 case "buyOutShop":
@@ -163,6 +195,11 @@ Q.socket.on('connected', function (connectionData) {
                     break;
                 case "finalizeInvestInShop":
                     Q.GameController.investInShop(state, data.investAmount);
+                    Q.MenuController.makeMenu(state, "playerTurnMenu", [0, 0]);
+                    Q.AudioController.playSound("purchase-item");
+                    break;
+                case "finalizeUpgradeShop":
+                    Q.GameController.upgradeShop(state, data.rankUp, data.cost);
                     Q.MenuController.makeMenu(state, "playerTurnMenu", [0, 0]);
                     Q.AudioController.playSound("purchase-item");
                     break;

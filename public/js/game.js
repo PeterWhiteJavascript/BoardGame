@@ -40,19 +40,6 @@ Quintus.Game = function(Q) {
             Q.stageScene("hud", 3);
 
             stage.on("step", function(){
-                //There are a few things that players can do when it's not their turn.
-                //This includes checking stats/opening menus.
-                if(Q.inputs["open-sets-menu"]){
-                    if(Q.stage(3).setMenu){ 
-                        Q.stage(3).setMenu.destroy();
-                        Q.stage(3).setMenu = false;
-                    } else {
-                        Q.stage(3).setMenu = Q.stage(3).insert(new Q.SetsMenu({player: Q.GameState.turnOrder[0]}));
-                    }
-                    
-                    Q.inputs["open-sets-menu"] = false;
-                }
-                
                 if(!Q.isActiveUser()) return;
                 let inputs = {};
                 if(Q.inputs["confirm"]){

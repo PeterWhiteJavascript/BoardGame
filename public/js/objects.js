@@ -31,6 +31,9 @@ Quintus.Objects = function(Q) {
                     this.p.vendorIcon = this.stage.insert(new Q.Sprite({x:Q.c.tileW / 2, y: 0, cx:0, cy:0, sheet: (this.tileData.itemName.toLowerCase()) + "-vendor", frame: 0}), this);
                     this.p.vendorText = this.stage.insert(new Q.UI.Text({x:Q.c.tileW, y: Q.c.tileH * 1.35, label: "" + (this.tileData.itemCost ? this.tileData.itemCost : "Free"), size: 18}), this);
                     break;
+                case "itemshop":
+                    this.p.itemshopText = this.stage.insert(new Q.UI.Text({x:Q.c.tileW, y: Q.c.tileH * 1.35, label:"ITEMS", size: 18}), this);
+                    break;
             }
             //If the tile has restricted directions, display them.
             if(this.tileData.dirs){
@@ -192,9 +195,9 @@ Quintus.Objects = function(Q) {
         removeDie: function(){
             this.stage.remove(this);
         },
-        stop: function(num){
+        stop: function(){
             this.off("step", this, "randomize");
-            this.p.frame = num - 1;
+            this.p.frame = this.p.roll - 1;
             this.stage.on("pressedInput", this, "removeDie");
         }   
     });
@@ -284,32 +287,36 @@ Quintus.Objects = function(Q) {
                 }
             }
         },
-        displayOptions: function(options, onHover){
+        displayOptions: function(onHover){
+            let options = Q.GameState.itemGrid;
             let cursor = new Q.Cursor();
             this.p.menuButtons = [];
             let menuButtonCont = this;
             for(let i = 0; i < options.length; i++){
-                let button = this.insert(new Q.MenuButton({x: 5, y: 5 + 40 * i, w:175, label: options[i][0], func: options[i][1], props:options[i][2], cursor: cursor}));
-                button.on("interactWith", function(){
-                    this.removeContent();
-                    //If there's no function, we're just cycling text.
-                    if(!this.p.func){
-                        processDialogue();
-                    } else {
-                        let newTextAvailable = Q.MenuController.menuButtonInteractFunction(this.p.func, this.p.props, this.stage.options);
-                        if(newTextAvailable){
-                            menuButtonCont.p.dialogue = newTextAvailable;
-                            menuButtonCont.p.idx = 0;
+                this.p.menuButtons[i] = [];
+                for(let j = 0; j < options[i].length; j++){
+                    let button = this.insert(new Q.MenuButton({x: 5, y: 5 + 40 * i, w:175, label: options[i][j][0], func: options[i][j][1], props:options[i][j][2], cursor: cursor}));
+                    button.on("interactWith", function(){
+                        this.removeContent();
+                        //If there's no function, we're just cycling text.
+                        if(!this.p.func){
                             processDialogue();
+                        } else {
+                            let newTextAvailable = Q.MenuController.menuButtonInteractFunction(this.p.func, this.p.props, this.stage.options);
+                            if(newTextAvailable){
+                                menuButtonCont.p.dialogue = newTextAvailable;
+                                menuButtonCont.p.idx = 0;
+                                processDialogue();
+                            }
                         }
-                    }
-                });
-                if(onHover) {
-                    button.on("hover", function(){
-                        onHover(button);
                     });
+                    if(onHover) {
+                        button.on("hover", function(){
+                            onHover(button);
+                        });
+                    }
+                    this.p.menuButtons[i].push(button);
                 }
-                this.p.menuButtons.push([button]);
             }
             this.p.menuButtons[0][0].hover();
         }
@@ -559,6 +566,15 @@ Quintus.Objects = function(Q) {
 
                         this.shopIcon.p.sheet = (shop.itemName.toLowerCase()) + "-vendor";
                         break;
+                    case "itemshop":
+                        this.shopTextCont.hide();
+                        this.shopRankContainer.hide();
+
+                        this.districtCont.p.fill = "#AAA";
+                        this.districtCont.text.p.label = "Item Shop";
+
+                        this.shopIcon.p.sheet = "tile-structure-4";
+                        break;
                 }
             }
         }
@@ -641,7 +657,7 @@ Quintus.Objects = function(Q) {
             
             if(!dialogue[idx + 1]){
                 Q.GameState.currentCont = optionsArea;
-                Q.GameState.currentCont.displayOptions(stage.options.dialogue.options, stage.options.dialogue.onHoverOption);
+                Q.GameState.currentCont.displayOptions(stage.options.dialogue.onHoverOption);
             }
         }
         processDialogue();
@@ -651,15 +667,12 @@ Quintus.Objects = function(Q) {
         stage.options.selected = stage.options.selected || [0, 0];
         let menu = stage.options.menu;
         let state = stage.options.state;
-        let options = stage.options.options;
+        let options = Q.GameState.itemGrid;
         let menuBox = stage.insert(new Q.UI.Container({x: 50, y:50, w: 195, h: options.length * 40 + 15 , cx:0, cy:0, fill: Q.OptionsController.options.menuColor, opacity:0.8, border:1}));
         
         let optionsArea = menuBox.insert(new Q.MenuButtonContainer({x:5, y:5, cx:0, cy:0, w:menuBox.p.w - 10, h:menuBox.p.h - 10, fill: Q.OptionsController.options.menuColor}));
         state.currentCont = optionsArea;
-        let displayable = options.map((opt) => {
-            return opt[0];
-        });
-        state.currentCont.displayOptions(displayable);
+        state.currentCont.displayOptions();
         state.currentCont.p.menuButtons[stage.options.selected[1]][stage.options.selected[0]].hover();
     });
     
@@ -678,6 +691,9 @@ Quintus.Objects = function(Q) {
     
     Q.scene("upgradeMenu", function(stage){
         console.log("showing upgrade menu");
+    });
+    Q.scene("setsMenu", function(stage){
+        stage.insert(new Q.SetsMenu({player: Q.GameState.turnOrder[0]})); 
     });
     
     

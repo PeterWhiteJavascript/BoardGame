@@ -12,5 +12,82 @@
         "Peanut":["Want a peanut? \nIt'll only cost you peanuts hahaha!"],
         "Almond":["Fresh almonds here. \nThey're pretty cheap I guess."],
         "Cashew":["These cashews are the real deal. \nAre you gonna pay up?"]
+    },
+    "items": {
+        "0":{
+            "name": "25% off Shop Coupon",
+            "desc": "Get 25% off the purchase of a shop.",
+            "turns": 1
+        },
+        "1": {
+            "name": "50% off Item Coupon",
+            "desc": "Get 50% off the purchase of an item.",
+            "turns": 1
+        },
+        "2": {
+            "name": "Extra Die",
+            "desc": "Get 1 extra roll this turn.",
+            "turns": 1
+        },
+        "3": {
+            "name": "Two Extra Dice",
+            "desc": "Get 1 extra dice for the roll this turn.",
+            "turns": 1
+        },
+        "4": {
+            "name": "Double Turn",
+            "desc": "Roll again after landing on a tile.",
+            "turns": 1
+        },
+        "5": {
+            "name": "Invisible",
+            "desc": "Skip the on tile effects for this roll.",
+            "turns": 1
+        },
+        "6": {
+            "name": "Warp",
+            "desc": "Warp to a specified tile.",
+            "turns": 0
+        },
+        "7": {
+            "name": "Steal Set Piece",
+            "desc": "Steal a set piece of your choice from another player.",
+            "turns": 0
+        },
+        "8": {
+            "name": "Thief",
+            "desc": "Steal 100 * your level in gold from another player.",
+            "turns": 0
+        },
+        "9": {
+            "name": "Double Stock",
+            "desc": "You can buy double the stock this turn.",
+            "turns": 1
+        },
+        "10": {
+            "name": "Steal Item",
+            "desc": "Steal a random item from a random player.",
+            "turns": 0
+        },
+        "11": {
+            "name": "Commision",
+            "desc": "Take 20% of all sales profit until the user's next turn.",
+            "turns": 1
+        },
+        "12": {
+            "name": "Big Commision",
+            "desc": "Take 40% of all sales profit until the user's next turn.",
+            "turns": 1
+        },
+        "13": {
+            "name": "Stock Stealer",
+            "desc": "Take 50% of all stock profit until the user's next turn.",
+            "turns": 1
+        },
+        "14": {
+            "name": "Bingo Player",
+            "desc": "Select a number on the bingo sheet to stamp.",
+            "turns": 0
+        }
     }
 }

@@ -120,6 +120,17 @@
         },
         {
             "x": 12,
+            "y": 4,
+            "name": "Item Shop",
+            "type": "itemshop",
+            "items":[
+                [0, 100],
+                [2, 100],
+                [6, 300]
+            ]
+        },
+        {
+            "x": 12,
             "y": 6,
             "value": 50,
             "rank": 1,
@@ -155,15 +166,6 @@
             "type": "shop",
             "district": 1,
             "dirs": ["left"]
-        },
-        {
-            "x": 12,
-            "y": 4,
-            "value": 50,
-            "rank": 1,
-            "name": "Street Shop",
-            "type": "shop",
-            "district": 1
         },
         {
             "x": 12,
