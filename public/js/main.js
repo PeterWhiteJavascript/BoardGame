@@ -38,7 +38,7 @@ Q.socket.on('connected', function (connectionData) {
         Q.OptionsController.options = {
             menuColor: "#111",
             textColor: "#EEE",
-            musicEnabled: true,
+            musicEnabled: false,
             musicVolume: 0.1,
             soundEnabled: true,
             soundVolume: 1
@@ -65,7 +65,6 @@ Q.socket.on('connected', function (connectionData) {
                             case "dice":
                                 Q.GameController.removeDice(state);
                                 Q.AudioController.stopSound("roll-die");
-                                
                                 break;
                             case "moveArrows":
                                 player.sprite.destroyArrows();
@@ -120,10 +119,6 @@ Q.socket.on('connected', function (connectionData) {
                         break;
                     case "allowPlayerMovement":
                         Q.GameController.allowPlayerMovement(state, r.currentMovementNum);
-                        break;
-                    case "playerConfirmMove":
-                        Q.GameController.playerConfirmMove(state, player.playerId);
-                        Q.AudioController.playSound("change-menu");
                         break;
                     case "playerMovement":
                         var tile = Q.MapController.getTileAt(state, r.loc);

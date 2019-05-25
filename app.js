@@ -68,7 +68,7 @@ Server.prototype.addUserToGame = function(user, socket, room){
             map: "example-map.json",
             settings:{
                 mode: "ffa",
-                numOfPlayers: 2
+                numOfPlayers:1
             }
         });
     } else {

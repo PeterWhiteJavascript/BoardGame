@@ -75,7 +75,8 @@ Quintus.Objects = function(Q) {
             this.p.y -= Q.c.tileH / 2;
         },
         destroyArrows: function(){
-            this.directionArrows.forEach((arrow) => { arrow.destroy(); });
+            let stage = this.stage;
+            this.directionArrows.forEach((arrow) => { stage.remove(arrow); });
         },
         //Animate the player to the tile that they are going to. Also remove the directional arrows (these are added when the player arrives on the tile).
         moveTo: function(loc){
@@ -118,8 +119,6 @@ Quintus.Objects = function(Q) {
                     dirs.push(allowDir);
                 }
             }
-            
-            
             
             for(let i = 0; i < dirs.length; i++){
                 this.directionArrows.push(this.stage.insert(new Q.DirectionArrow({sheet: "arrow-" + dirs[i]}), this));

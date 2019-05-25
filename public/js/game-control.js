@@ -33,7 +33,7 @@ Quintus.GameControl = function(Q) {
                     let setOptions = sets.map((set, i) => {
                         return [set.name, "purchaseSet", [i]];
                     });
-                    setOptions.push(["Nothing", "noExchange"]);
+                    setOptions.push(["Nothing", "confirmFalse"]);
                     Q.MenuController.makeDialogueMenu(state, "askExchangeSets", {
                         options:setOptions,
                         onHoverOption: (option) => {
@@ -52,8 +52,12 @@ Quintus.GameControl = function(Q) {
                             if(finish) props = props.concat(finish);
                             return props;
                         },
-                        noExchange: (state) => {
-                            return Q.GameController.checkFinishMove(state, player);
+                        confirmFalse: (state) => {
+                            let move = Q.GameController.checkFinishMove(state, player);
+                            if(move){
+                                move = [{func: "clearStage", num: 2}, move];
+                            }
+                            return move;
                         }
                     });
                     return true;
@@ -76,7 +80,11 @@ Quintus.GameControl = function(Q) {
                             return props;
                         },
                         confirmFalse: () => {
-                            return Q.GameController.checkFinishMove(state, player);
+                            let move = Q.GameController.checkFinishMove(state, player);
+                            if(move){
+                                move = [{func: "clearStage", num: 2}, move];
+                            }
+                            return move;
                         }
                     });
                     return true;
@@ -89,7 +97,11 @@ Quintus.GameControl = function(Q) {
                             return {func: "makeDialogueMenu", menu: "buyItemsMenu"};
                         },
                         confirmFalse: () => {
-                            return Q.GameController.checkFinishMove(state, player);
+                            let move = Q.GameController.checkFinishMove(state, player);
+                            if(move){
+                                move = [{func: "clearStage", num: 2}, move];
+                            }
+                            return move;
                         }
                     });
                     return true;
@@ -675,6 +687,7 @@ Quintus.GameControl = function(Q) {
             let obj = Q.MapController.processPlayerMovement(state, inputs, id);
             if(obj.finish && !obj.passBy){
                 Q.GameController.askFinishMove(state, Q.GameController.getPlayer(state, id));
+                obj = [obj, {func: "removeItem", item: "moveArrows"}];
             }
             return obj;
         },
@@ -778,7 +791,7 @@ Quintus.GameControl = function(Q) {
         //When the player steps onto the last tile of the movement
         askFinishMove: function(state){
             Q.MenuController.makeDialogueMenu(state, "menuMovePlayer");
-            return [{func: "removeItem", item: "moveArrows"} ,{func: "makeDialogueMenu", menu: "menuMovePlayer"}];
+            return {func: "makeDialogueMenu", menu: "menuMovePlayer"};
         },
         movePlayer: function(player, tileTo){
             player.loc = tileTo.loc;
@@ -1163,7 +1176,7 @@ Quintus.GameControl = function(Q) {
                 },
                 goBack: (state) => {
                     let player = state.turnOrder[0];
-                    return Q.GameController.checkFinishMove(state, player);
+                    return [{func: "clearStage", num: 2}, Q.GameController.checkFinishMove(state, player)];
                 }
             },
             askIfWantToBuyItem: {
@@ -1389,7 +1402,6 @@ Quintus.GameControl = function(Q) {
                         Q.stageScene("menu", 2, {menu: state.inputState, selected: selected, options: state.itemGrid, state: state});
                         Q.AudioController.playSound("change-menu");
                     }
-                    
                     return {func: "loadOptionsMenu", selected: selected, menu: "viewMenu", playSound: true};
                 }
             },
