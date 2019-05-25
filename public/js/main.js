@@ -47,163 +47,196 @@ Q.socket.on('connected', function (connectionData) {
         
         Q.c = Q.assets["data/constants/data.json"];
         Q.setUpAnimations();
-        
         Q.applyInputResult = function(data){
-            console.log(data);
+            console.log(data)
             let state = Q.GameState;
-            let player = Q.GameController.getPlayer(state, data.playerId);
-            switch(data.func){
-                case "invalidAction":
-                    Q.AudioController.playSound("invalid-action");
-                    break;
-                case "checkFinishMove":
-                    Q.clearStage(2);
-                    Q.GameController.checkFinishMove(state, player);
-                    break;
-                case "useItem":
-                    Q.GameController.useItem(state, data.itemIdx);
-                    break;
-                case "makeDialogueMenu":
-                    Q.MenuController.makeDialogueMenu(state, data.menu);
-                    break;
-                case "makeCustomMenu":
-                    state.inputState = Q.MenuController.makeCustomMenu(state, data.menu, data.props);
-                    break;
-                case "navigateMenu":
-                    Q.MenuController.setMenuPosition(state, data.item);
-                    break;
-                case "loadOptionsMenu":
-                    state.inputState = Q.MenuController.makeMenu(state, data.menu, data.selected);
-                    if(data.playSound){
+            state.currentId = data.id;
+            let player = Q.GameController.getPlayer(state, data.id);
+            if(!Array.isArray(data.response)) data.response = [data.response];
+            //data.response is an array of functions along with arguments that should be run.
+            data.response.forEach((r) => {
+                let func = r.func;
+                switch(func){
+                    case "removeItem":
+                        switch(r.item){
+                            case "shopSelector":
+                                state.shopSelector.sprite.destroy();
+                                break;
+                            case "dice":
+                                Q.GameController.removeDice(state);
+                                Q.AudioController.stopSound("roll-die");
+                                
+                                break;
+                            case "moveArrows":
+                                player.sprite.destroyArrows();
+                                player.sprite.p.allowMovement = false;
+                                break;
+                        }
+                        break;
+                    case "clearStage":
+                        Q.clearStage(r.num);
+                        break;
+                    case "setQValue":
+                        Q.setDeepValue(Q, r.path, r.value);
+                        break;
+                    case "setStateValue":
+                        Q.setDeepValue(state, r.path, r.value);
+                        break;
+                    case "stopSound":
+                        Q.AudioController.stopSound(r.sound);
+                        break;
+                    case "invalidAction":
+                        Q.AudioController.playSound("invalid-action");
+                        break;
+                    case "checkFinishMove":
+                        Q.GameController.checkFinishMove(state, player);
+                        break;
+                    case "useItem":
+                        Q.GameController.useItem(state, r.itemIdx);
+                        break;
+                    case "makeDialogueMenu":
+                        Q.MenuController.makeDialogueMenu(state, r.menu);
+                        break;
+                    case "makeCustomMenu":
+                        state.inputState = Q.MenuController.makeCustomMenu(state, r.menu, r.props);
+                        break;
+                    case "navigateMenu":
+                        Q.MenuController.setMenuPosition(state, r.item);
+                        break;
+                    case "loadOptionsMenu":
+                        Q.MenuController.makeMenu(state, r.menu, r.selected);
+                        if(r.playSound){
+                            Q.AudioController.playSound("change-menu");
+                        }
+                        break;
+                    case "rollDie":
+                        Q.GameController.startRollingDie(state, r.rollsNums, player.sprite);
+                        break;
+                    case "landOnMainTile":
+                        Q.GameController.landOnMainTile(state, player);
+                        break;
+                    case "stopDice":
+                        Q.GameController.stopDice(state, r.rollsNums);
+                        break;
+                    case "allowPlayerMovement":
+                        Q.GameController.allowPlayerMovement(state, r.currentMovementNum);
+                        break;
+                    case "playerConfirmMove":
+                        Q.GameController.playerConfirmMove(state, player.playerId);
                         Q.AudioController.playSound("change-menu");
-                    }
-                    break;
-                case "rollDie":
-                    Q.GameController.startRollingDie(state, data.rollsNums, player.sprite);
-                    break;
-                case "stopDiceAndAllowMovement":
-                    Q.GameController.stopDice(state, data.rollsNums);
-                    Q.GameController.allowPlayerMovement(state, data.currentMovementNum);
-                    break;
-                case "removeDiceAndBackToPTM":
-                    Q.GameController.removeDice(state);
-                    Q.applyInputResult({func: "loadOptionsMenu", menu: "playerTurnMenu", selected: [0, 0]});
-                    state.currentMovementNum = false;
-                    Q.AudioController.stopSound("roll-die");
-                    break;
-                case "playerConfirmMove":
-                    Q.GameController.playerConfirmMove(state, data.playerId);
-                    Q.AudioController.playSound("change-menu");
-                    break;
-                case "playerMovement":
-                    var tile = Q.MapController.getTileAt(state, data.loc);
-                    Q.GameController.removeDice(state);
-                    Q.GameController.tileDetails.displayShop(tile);
-                    
-                    if(data.direction === "forward"){
-                        Q.GameController.movePlayer(player, tile);
-                        state.currentMovementPath.push(tile);
-                        player.tileTo = tile;
-                        player.finish = data.finish;
-                        Q.MapController.checkPassByTile(state, player);
-                    } else if(data.direction === "back"){
+                        break;
+                    case "playerMovement":
+                        var tile = Q.MapController.getTileAt(state, r.loc);
+                        Q.GameController.removeDice(state);
+                        Q.GameController.tileDetails.displayShop(tile);
+
+                        if(r.direction === "forward"){
+                            Q.GameController.movePlayer(player, tile);
+                            state.currentMovementPath.push(tile);
+                            player.tileTo = tile;
+                            player.finish = r.finish;
+                            Q.MapController.checkPassByTile(state, player);
+                        } else if(r.direction === "back"){
+                            Q.GameController.playerGoBackMove(state, player.playerId);
+                        }
+                        if(r.finish && !r.passBy){
+                            Q.GameController.askFinishMove(state, player);
+                        }
+                        break;
+                    case "playerGoBackMove":
+                        Q.clearStage(2);
+                        r.func = "playerMovement";
+                        player.sprite.showMovementDirections();
                         Q.GameController.playerGoBackMove(state, player.playerId);
-                    }
-                    if(data.finish && !data.passBy){
-                        Q.GameController.askFinishMove(state, player);
-                    }
-                    break;
-                case "playerGoBackMove":
-                    Q.clearStage(2);
-                    data.func = "playerMovement";
-                    player.sprite.showMovementDirections();
-                    Q.GameController.playerGoBackMove(state, player.playerId);
-                    break;
-                case "purchaseSet":
-                    Q.clearStage(2);
-                    if(data.num >= 0){
-                        Q.GameController.purchaseSet(state, data.num, data.playerId);
+                        break;
+                    case "purchaseSet":
+                        Q.GameController.purchaseSet(state, r.num, player.playerId);
                         Q.AudioController.playSound("purchase-item");
-                    }
-                    if(data.finish){
-                        Q.GameController.askFinishMove(state, player);
-                    }
-                    break;
-                case "purchaseSetItem":
-                    Q.clearStage(2);
-                    if(data.loc){
-                        Q.GameController.purchaseSetItem(state, data.loc, data.playerId);
+                        break;
+                    case "purchaseSetItem":
+                        Q.GameController.purchaseSetItem(state, r.loc, player.playerId);
                         Q.AudioController.playSound("purchase-item");
-                    } 
-                    if(data.finish){
-                        Q.GameController.askFinishMove(state, player);
+                        break;
+                    case "purchaseItem":
+                        Q.GameController.purchaseItem(state, Object.assign({id: r.item.id, cost: r.item.cost}, Q.c.items[r.item.id]), player.playerId);
+                        break;
+                    case "buyShop":
+                        if(r.itemIdx >= 0){
+                            player.items.splice(r.itemIdx, 1);
+                        }
+                        var shop = Q.MapController.getTileAt(state, r.loc);
+                        Q.GameController.buyShop(state, player, shop, r.couponValue);
+                        Q.GameController.endTurn(state);
+                        break;
+                    case "askToBuyShop":
+                        Q.GameController.askToBuyShop(state, player, Q.MapController.getTileAt(state, r.loc));
+                        break;
+                    case "payOwnerOfShop":
+                        Q.GameController.payOwnerOfShop(state, player, Q.MapController.getTileAt(state, r.loc));
+                        break;
+                    case "buyOutShop":
+                        Q.GameController.buyOutShop(state, player, Q.MapController.getTileAt(state, r.loc));
+                        Q.GameController.endTurn(state);
+                        break;
+                    case "endTurn":
+                        Q.GameController.endTurn(state);
+                        break;
+                    case "goBackMenu":
+                        Q.GameState.inputState.goBack(state);
+                        break;
+                    case "makeMoveShopSelector":
+                        Q.MenuController.makeMoveShopSelector(state, r.confirmType, r.backFunc, r.startPos);
+                        break;
+                    case "finishMoveShopSelector":
+                        Q.GameController.finishMoveShopSelector(state, r.key, Q.MapController.getTileAt(state, r.loc), r.props);
+                        break;
+                    case "moveShopSelector":
+                        state.shopSelector.moveTo(r.move[0], r.move[1], r.move[2]);
+                        break;
+                    case "controlNumberCycler":
+                        if(r.item){
+                            state.currentItem = r.item;
+                            state.currentCont.p.menuButtons[state.currentItem[0]][state.currentItem[1]].selected();
+                            Q.AudioController.playSound("change-number-cycler");
+                        } else if(r.num >= 0){
+                            state.itemGrid[state.currentItem[1]][state.currentItem[0]][0] = r.num;
+                            state.currentCont.p.menuButtons[state.currentItem[0]][state.currentItem[1]].changeLabel(state.itemGrid[state.currentItem[1]][state.currentItem[0]][0]);
+                            state.currentCont.trigger("adjustedNumber", state);
+                            Q.AudioController.playSound("change-number-cycler");
+                        } else if(r.value >= 0){
+                            Q.MenuController.setNumberCyclerValue(state, r.value);
+                            state.currentCont.trigger("adjustedNumber", state);
+                        }
+                        break;
+                    case "finalizeInvestInShop":
+                        Q.GameController.investInShop(state, r.investAmount);
+                        Q.MenuController.makeMenu(state, "playerTurnMenu", [0, 0]);
+                        Q.AudioController.playSound("purchase-item");
+                        break;
+                    case "finalizeUpgradeShop":
+                        Q.GameController.upgradeShop(state, r.rankUp, r.cost);
+                        Q.MenuController.makeMenu(state, "playerTurnMenu", [0, 0]);
+                        Q.AudioController.playSound("purchase-item");
+                        break;
+                }
+            });/*
+            if(data.remove){
+                data.remove.forEach((r) => {
+                    switch(r){
+                        case "shopSelector":
+                            state.shopSelector.sprite.destroy();
+                            state.shopSelector = false;
+                            break;
                     }
-                    break;
-                case "purchaseItem":
-                    Q.clearStage(2);
-                    if(data.item){
-                        Q.GameController.purchaseItem(state, Object.assign({id: data.item.id, cost: data.item.cost}, Q.c.items[data.item.id]), player.playerId);
-                    }
-                    if(data.finish){
-                        Q.GameController.askFinishMove(state, player);
-                    }
-                    break;
-                case "buyShop":
-                    if(data.itemIdx >= 0){
-                        player.items.splice(data.itemIdx, 1);
-                    }
-                    var shop = Q.MapController.getTileAt(state, data.loc);
-                    Q.GameController.buyShop(state, Q.GameController.getPlayer(state, data.playerId), shop, data.couponValue);
-                    Q.GameController.endTurn(state);
-                    break;
-                case "buyOutShop":
-                    Q.GameController.buyOutShop(state, Q.GameController.getPlayer(state, data.playerId), Q.MapController.getTileAt(state, data.loc));
-                    Q.GameController.endTurn(state);
-                    break;
-                case "endTurn":
-                    Q.GameController.endTurn(state);
-                    break;
-                case "goBackMenu":
-                    Q.GameState.inputState.goBack(state);
-                    break;
-                case "makeMoveShopSelector":
-                    Q.MenuController.makeMoveShopSelector(state, data.confirmType, data.backFunc, data.startPos);
-                    break;
-                case "processShopSelectorInput":
-                    if(data.back){
-                        state.inputState.goBack(state, state.inputState.backOption);
-                    } else if(data.finish){
-                        state.inputState.finish(state, Q.MapController.getTileAt(state, data.finish));
-                    } else if(data.move){
-                        state.shopSelector.moveTo(data.move[0], data.move[1], data.move[2]);
-                    }
-                    break;
-                case "controlNumberCycler":
-                    if(data.item){
-                        state.currentItem = data.item;
-                        state.currentCont.p.menuButtons[state.currentItem[0]][state.currentItem[1]].selected();
-                        Q.AudioController.playSound("change-number-cycler");
-                    } else if(data.num >= 0){
-                        state.itemGrid[state.currentItem[1]][state.currentItem[0]][0] = data.num;
-                        state.currentCont.p.menuButtons[state.currentItem[0]][state.currentItem[1]].changeLabel(state.itemGrid[state.currentItem[1]][state.currentItem[0]][0]);
-                        state.currentCont.trigger("adjustedNumber", state);
-                        Q.AudioController.playSound("change-number-cycler");
-                    } else if(data.value >= 0){
-                        Q.MenuController.setNumberCyclerValue(state, data.value);
-                        state.currentCont.trigger("adjustedNumber", state);
-                    }
-                    break;
-                case "finalizeInvestInShop":
-                    Q.GameController.investInShop(state, data.investAmount);
-                    Q.MenuController.makeMenu(state, "playerTurnMenu", [0, 0]);
-                    Q.AudioController.playSound("purchase-item");
-                    break;
-                case "finalizeUpgradeShop":
-                    Q.GameController.upgradeShop(state, data.rankUp, data.cost);
-                    Q.MenuController.makeMenu(state, "playerTurnMenu", [0, 0]);
-                    Q.AudioController.playSound("purchase-item");
-                    break;
+                });
             }
+            if(data.preventMultipleInputs !== undefined){
+                Q.preventMutileInputs = data.preventMultipleInputs;
+            }
+            
+            switch(data.func){
+                
+            }*/
         };
         Q.socket.on("inputResult", Q.applyInputResult);
         

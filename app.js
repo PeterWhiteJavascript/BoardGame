@@ -158,8 +158,7 @@ io.on('connection', function (socket) {
     socket.on("inputted", function(data){
         let response = Q.GameController.processInputs(game.state, data);
         if(response){
-            response.playerId = user.id;
-            io.in(user.gameRoom).emit("inputResult", response);
+            io.in(user.gameRoom).emit("inputResult", {id: user.id, response: response});
         }
     });
 });

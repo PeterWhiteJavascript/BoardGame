@@ -680,6 +680,7 @@ Quintus.Objects = function(Q) {
         let shop = stage.options.shop;
         let digits = stage.options.cycler;
         let currentItem = stage.options.currentItem || [digits - 1, 0];
+        console.log(currentItem)
         let menuBox = stage.insert(new Q.StandardMenu({x: Q.width / 2 - 350, y: Q.height / 2 - 250, w: 700, h: 500}));
         menuBox.insert(new Q.StandardText({x: menuBox.p.w / 2, y: 30, label: "Invest in " + shop.name, align: "middle"}));
         stage.numberCycler = menuBox.insert(new Q.NumberCycler({digits: digits, x: menuBox.p.w / 2, y: 100}));

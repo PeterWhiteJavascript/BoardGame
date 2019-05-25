@@ -42,10 +42,16 @@ Quintus.Utility = function(Q) {
         return dir;
     };
     Q.getDeepValue = function(obj, path){
-        for (var i=0, path=path.split('.'), len=path.length; i<len; i++){
+        for (var i = 0, path = path.split('.'), len = path.length; i < len; i++){
             obj = obj[path[i]];
         };
         return obj;
+    };
+    Q.setDeepValue = function(obj, path, value){
+        for (var i = 0, path = path.split('.'), len = path.length - 1; i < len; i++){
+            obj = obj[path[i]];
+        };
+        obj[path[i]] = value;
     };
     Q.getLoc = function(x, y){
         return [

@@ -67,11 +67,11 @@ Quintus.Viewport = function(Q){
         var maxX=(stage.mapWidth*Q.tileW)*stage.viewport.scale;
         var minY=0;
         var maxY=(stage.mapHeight*Q.tileH)*stage.viewport.scale;
-        stage.follow(obj,{x:true,y:true}/*,{minX: minX, maxX: maxX, minY: minY,maxY:maxY}*/);
+        stage.follow(obj, {x:true, y:true}/* ,{minX: minX, maxX: maxX, minY: minY,maxY:maxY}*/);
     };
     Q.addViewport = function(stage, toFollow){
         stage.add("viewport");
-        /*stage.viewport.scale = 2;
+        /*stage.viewport.scale = 1;
         
         Q.viewFollow(toFollow);
         return;*/
