@@ -38,7 +38,7 @@ Q.socket.on('connected', function (connectionData) {
         Q.OptionsController.options = {
             menuColor: "#111",
             textColor: "#EEE",
-            musicEnabled: false,
+            musicEnabled: true,
             musicVolume: 0.1,
             soundEnabled: true,
             soundVolume: 1
