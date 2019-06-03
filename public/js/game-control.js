@@ -424,11 +424,18 @@ Quintus.GameControl = function(Q) {
             if(this.sprite){
                 this.sprite.p.frame = 1;
                 Q.AudioController.playSound("hover-shop");
-                Q.GameController.tileDetails.displayShop(Q.MapController.getTileAt(this.p.state, Q.getLoc(this.p.x - Q.c.tileW / 2, this.p.y - Q.c.tileH / 4)));
             }
             this.p.hovering = true;
+            
+        },
+        showShopDetails: function(){
+            if(this.sprite){
+                Q.GameController.tileDetails.displayShop(Q.MapController.getTileAt(this.p.state, Q.getLoc(this.p.x - Q.c.tileW / 2, this.p.y - Q.c.tileH / 4)));
+            }
         },
         moved: function(inputs){
+            this.changedShop = false;
+            let lastShopOn = this.shopOn;
             this.p.lastX = this.p.x;
             this.p.lastY = this.p.y;
             let coord = [0, 0];
@@ -462,13 +469,19 @@ Quintus.GameControl = function(Q) {
                 }
             }
             this.checkSeekTile();
+            if(this.shopOn !== lastShopOn){
+                this.changedShop = true;
+            }
         },
         moveTo: function(x, y, hover){
             this.p.x = x;
             this.p.y = y;
-            if(hover && !this.p.hovering){
-                this.hoverShop();
-                
+            if(hover){
+                if(hover === "details"){
+                    this.showShopDetails();
+                } else {
+                    this.hoverShop();
+                }
             } else {
                 this.dehoverShop();
             }
@@ -1050,6 +1063,11 @@ Quintus.GameControl = function(Q) {
                         return Q.GameController.finishMoveShopSelector(state, "warpPlayerTo", tile);
                     };
                     break;
+                case "viewBoard":
+                    finish = function(state, tile){
+                        return false;
+                    };
+                    break;
             }
             switch(backFunc){
                 case "toShopsMenu":
@@ -1058,6 +1076,14 @@ Quintus.GameControl = function(Q) {
                         Q.MenuController.makeMenu(state, "shopsMenu", backOpt);
                         state.shopSelector = false;
                         return [{func: "setQValue", path: "preventMultipleInputs", value: true}, {func: "removeItem", item: "shopSelector"}, {func: "loadOptionsMenu", menu: "shopsMenu", selected: backOpt}];
+                    };
+                    break;
+                case "toViewMenu":
+                    goBack = function(state, backOption){
+                        let backOpt = [0, 0];
+                        Q.MenuController.makeMenu(state, "viewMenu", backOpt);
+                        state.shopSelector = false;
+                        return [{func: "setQValue", path: "preventMultipleInputs", value: true}, {func: "removeItem", item: "shopSelector"}, {func: "loadOptionsMenu", menu: "viewMenu", selected: backOpt}];
                     };
                     break;
                 default: 
@@ -1363,7 +1389,8 @@ Quintus.GameControl = function(Q) {
                     ["Back", "goBack"]
                 ],
                 viewBoard: (state) => {
-                    
+                    let player = state.turnOrder[0];
+                    return Q.MenuController.makeMoveShopSelector(state, "viewBoard", "toViewMenu", player.loc, "all");
                 },
                 viewMap: (state) => {
                     
@@ -1627,8 +1654,12 @@ Quintus.GameControl = function(Q) {
             } else {
                 state.shopSelector.trigger("moved", inputs);
                 if(state.shopSelector.p.x !== state.shopSelector.p.lastX || state.shopSelector.p.y !== state.shopSelector.p.lastY){
-                    let props = [state.shopSelector.p.x, state.shopSelector.p.y ];
-                    if(state.shopSelector.atTile) props.push(true);
+                    let props = [state.shopSelector.p.x, state.shopSelector.p.y];
+                    if(state.shopSelector.atTile){
+                        props.push(true);
+                    } else if(state.shopSelector.changedShop){
+                        props.push("details");
+                    }
                     return {func: "moveShopSelector", move: props};
                 }
             }
