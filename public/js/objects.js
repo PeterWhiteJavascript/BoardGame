@@ -474,6 +474,60 @@ Quintus.Objects = function(Q) {
             toHover.children[0].p.fill = "gold";
         }
     });
+    Q.UI.Container.extend("MapMenu", {
+        init: function(p){
+            this._super(p, {
+                cx:0, cy:0,
+                w: Q.width / 2,
+                h: Q.height / 2,
+                x: Q.width / 4,
+                y: Q.height / 4, 
+                fill: Q.OptionsController.options.menuColor, 
+                opacity:0.8, 
+                border:1
+            }); 
+            this.on("inserted");
+        },
+        inserted: function(){
+            //TODO: size things based on actual map size to fit the screen better.
+            let map = Q.GameState.map;
+            let mapObj = this.stage.insert(new Q.UI.Container({x: this.p.w, y: this.p.h, w: this.p.w - 20, h: this.p.h - 20, border: 1, fill: "#BBB"}));
+            let distance = 16;
+            //Pulse the tile that the player is on
+            let player = this.p.player;
+            for(let i = 0; i < map.tiles.length; i++){
+                let tile = map.tiles[i];
+                let miniTile = mapObj.insert(new Q.UI.Container({x: (tile.loc[0] - map.centerX) * distance, y: (tile.loc[1] - map.centerY) * distance, w: 24, h: 16, fill: "transparent", radius: 1, border: 2, stroke: "black"}));
+                switch(tile.type){
+                    case "main":
+                        miniTile.insert(new Q.UI.Text({label: "H", size: 12, y: -miniTile.p.h / 2 + 1}));
+                        break;
+                    case "vendor":
+                        miniTile.insert(new Q.UI.Text({label: "V", size: 12, y: -miniTile.p.h / 2 + 1}));
+                        break;
+                    case "itemshop":
+                        miniTile.insert(new Q.UI.Text({label: "I", size: 12, y: -miniTile.p.h / 2 + 1}));
+                        break;
+                    case "shop":
+                        if(tile.ownedBy){
+                            miniTile.p.fill = tile.ownedBy.color;
+                        }
+                        miniTile.p.stroke = Q.GameState.map.data.districts[tile.district].color;
+                        break;
+                }
+                if(Q.locsMatch(player.loc, tile.loc)){
+                    miniTile.add("tween");
+                    function animate(){
+                        miniTile.animate({ opacity: 0.1 }, 1, Q.Easing.Linear)
+                            .chain({ opacity: 1 }, 0.5, Q.Easing.Quadratic.InOut, {callback: () => {animate();}});
+                    }
+                    animate();
+                }
+            }
+        }
+    });
+    
+    
     Q.UI.Container.extend("ShopStatusBox", {
         init: function(p){
             this._super(p, {
@@ -694,6 +748,9 @@ Quintus.Objects = function(Q) {
     });
     Q.scene("setsMenu", function(stage){
         stage.insert(new Q.SetsMenu({player: Q.GameState.turnOrder[0]})); 
+    });
+    Q.scene("mapMenu", function(stage){
+        stage.insert(new Q.MapMenu({player: Q.GameState.turnOrder[0]}));
     });
     
     

@@ -207,28 +207,38 @@ Quintus.GameControl = function(Q) {
             let map = {
                 data: mapData,
                 tiles: [],
-                districts: []
+                districts: [],
+                grid: Q.createArray(false, mapData.map.w, mapData.map.h),
+                minX: 0, //Use the min/max to determine center (used for view map)
+                maxX: 0,
+                minY: 0,
+                maxY:0
             };
             mapData.districts.forEach(() => {map.districts.push([]);});
-            let grid = Q.createArray(false, mapData.map.w, mapData.map.h);
-            //Add tiles to grid and generate their sprite.
-            for(let i = 0; i < mapData.tiles.length; i++){
-                let tileData = mapData.tiles[i];
+            function updateMinMax(pos){
+                map.minX = Math.min(pos.x, map.minX);
+                map.maxX = Math.max(pos.x, map.maxX);
+                map.minY = Math.min(pos.y, map.minY);
+                map.maxY = Math.max(pos.y, map.maxY);
+            }
+            function setCenterMinMax(){
+                map.centerX = (map.minX + map.maxX) / 2;
+                map.centerY = (map.minY + map.maxY) / 2;
+            } 
+            function generateTile(data){
                 let tile = {
-                    loc: [tileData.x, tileData.y],
-                    type: tileData.type,
-                    dirs: tileData.dirs
+                    loc: [data.x, data.y],
+                    type: data.type,
+                    dirs: data.dirs
                 };
-                map.tiles.push(tile);
-                Q.MapController.addToGrid(tileData.x, tileData.y, 2, 2, grid, tile);
                 //Do different things based on the tile type.
                 switch(tile.type){
                     case "shop":
-                        tile.initialValue = tileData.value;
-                        tile.rank = tileData.rank;
+                        tile.initialValue = data.value;
+                        tile.rank = data.rank;
                         tile.investedCapital = 0;
-                        tile.name = tileData.name;
-                        tile.district = tileData.district;
+                        tile.name = data.name;
+                        tile.district = data.district;
                         tile.value = Q.MapController.generateShopValue(tile.initialValue, tile.rank, tile.investedCapital);
                         tile.cost = Q.MapController.generateShopCost(tile.initialValue, tile.rank, tile.investedCapital, 1);
                         tile.maxCapital = Q.MapController.generateShopMaxCapital(tile.initialValue, tile.rank, tile.investedCapital);
@@ -238,20 +248,22 @@ Quintus.GameControl = function(Q) {
                         map.mainTile = tile;
                         break;
                     case "vendor":
-                        tile.itemName = tileData.item[0];
-                        tile.itemCost = tileData.item[1];
+                        tile.itemName = data.item[0];
+                        tile.itemCost = data.item[1];
                         break;
                     case "itemshop":
-                        tile.items = tileData.items.map((item) =>{
+                        tile.items = data.items.map((item) =>{
                             return Object.assign(Q.c.items[item[0]], {cost: item[1], id: item[0]});
                         });
                         break;
                 }
+                return tile;
             }
-            //Loop through the tiles and detect the tile that is at the direction that is available.
-            for(let i = 0; i < map.tiles.length; i++){
-                let tile = map.tiles[i];
-                let dirObj = {};
+            function addTileToGame(tile){
+                map.tiles.push(tile);
+                Q.MapController.addToGrid(tile.loc[0], tile.loc[1], 2, 2, map.grid, tile);
+            }
+            function generateTileDirections(tile){
                 //The dir idx of any tiles around this tile
                 let tilesAroundAt = {};
                 let dirIdxs = Q.c.dirIdxs.all;
@@ -261,12 +273,15 @@ Quintus.GameControl = function(Q) {
                     let checkAt = [tile.loc[0] + dirIdxs[j][0], tile.loc[1] + dirIdxs[j][1]];
                     //Make sure the loc is above 0 and less than maxX/Y
                     if(Q.locInBounds(checkAt, mapData.map.w, mapData.map.h)){
-                        let tileOn = grid[checkAt[1]][checkAt[0]];
+                        let tileOn = map.grid[checkAt[1]][checkAt[0]];
                         if(tileOn && Q.locsMatch(tileOn.loc, checkAt)){
                             tilesAroundAt[j] = tileOn;
                         }
                     }
                 }
+                return tilesAroundAt;
+            }
+            function removeDiagonals(tilesAroundAt){
                 //Remove diagonals if there is an adjacent.
                 //Optimization: do this with a loop
                 if(tilesAroundAt[2]){
@@ -285,6 +300,9 @@ Quintus.GameControl = function(Q) {
                     delete tilesAroundAt[12];
                     delete tilesAroundAt[0];
                 }
+            }
+            function convertDirIdxs(tilesAroundAt){
+                let dirObj = {};
                 //Convert all dir idxs to button inputs.
                 //Do all adjacent and offset, and then if there are overlapping diagonals, deal with them.
                 let order = [1, 3, 5, 7, 9, 11, 13, 15, 2, 6, 10, 14, 0, 4, 8, 12];
@@ -329,6 +347,20 @@ Quintus.GameControl = function(Q) {
                         }
                     }
                 }
+                return dirObj;
+            }
+            
+            //Generate the tiles.
+            for(let i = 0; i < mapData.tiles.length; i++){
+                updateMinMax(mapData.tiles[i]);
+                addTileToGame(generateTile(mapData.tiles[i]));
+            }
+            setCenterMinMax();
+            //Once the tiles are generated, check the tiles neighbours to determine which directions the player can go on each tile.
+            for(let i = 0; i < map.tiles.length; i++){
+                let tilesAroundAt = generateTileDirections(map.tiles[i]);
+                removeDiagonals(tilesAroundAt);
+                map.tiles[i].dir = convertDirIdxs(tilesAroundAt);
                 
                 //Dir IDX Positions - [[-2, -2], [-1, -2], [0, -2], [1, -2], [2, -2], [2, -1], [2, 0], [2, 1], [2, 2], [1, 2], [0, 2], [-1, 2], [-2, 2], [-2, 1], [-2, 0], [-2, -1]]
                 //Dir IDXS - 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15
@@ -349,13 +381,7 @@ Quintus.GameControl = function(Q) {
                  * 13  x   x   x   7
                  * 12  11  10  9   8
                  */
-                
-                tile.dir = dirObj;
-                
-                
-                
             }
-            map.grid = grid;
             return map;
         }
     });
@@ -1021,8 +1047,14 @@ Quintus.GameControl = function(Q) {
                         Q.stageScene("setsMenu", 2);
                     }
                     break;
+                case "mapMenu":
+                    Q.MenuController.initializeConfirmer(state);
+                    if(!Q.isServer()){
+                        Q.stageScene("mapMenu", 2);
+                    }
+                    break;
             }
-            return state.inputState;
+            return {func: "makeCustomMenu", menu: menu};
         },
         makeMenu: function(state, menu, selected){
             state.inputState = Q.MenuController.inputStates[menu];
@@ -1393,11 +1425,10 @@ Quintus.GameControl = function(Q) {
                     return Q.MenuController.makeMoveShopSelector(state, "viewBoard", "toViewMenu", player.loc, "all");
                 },
                 viewMap: (state) => {
-                    
+                    return Q.MenuController.makeCustomMenu(state, "mapMenu");
                 },
                 viewSets: (state) => {
-                    Q.MenuController.makeCustomMenu(state, "setsMenu");
-                    return {func: "makeCustomMenu", menu: "setsMenu"};
+                    return Q.MenuController.makeCustomMenu(state, "setsMenu");
                 },
                 viewStandings: (state) => {
                     
@@ -1424,6 +1455,22 @@ Quintus.GameControl = function(Q) {
                 goBack: (state) => {
                     state.inputState = Q.MenuController.inputStates.viewMenu;
                     let selected = [0, 2];
+                    Q.MenuController.initializeMenu(state, state.inputState, selected);
+                    if(!Q.isServer()){
+                        Q.stageScene("menu", 2, {menu: state.inputState, selected: selected, options: state.itemGrid, state: state});
+                        Q.AudioController.playSound("change-menu");
+                    }
+                    return {func: "loadOptionsMenu", selected: selected, menu: "viewMenu", playSound: true};
+                }
+            },
+            mapMenu: {
+                "func": "confirmer",
+                confirm: (state) => {
+                    return Q.MenuController.inputStates.mapMenu.goBack(state);
+                },
+                goBack: (state) => {
+                    state.inputState = Q.MenuController.inputStates.viewMenu;
+                    let selected = [0, 1];
                     Q.MenuController.initializeMenu(state, state.inputState, selected);
                     if(!Q.isServer()){
                         Q.stageScene("menu", 2, {menu: state.inputState, selected: selected, options: state.itemGrid, state: state});
