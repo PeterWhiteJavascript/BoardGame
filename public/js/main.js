@@ -104,8 +104,8 @@ Q.socket.on('connected', function (connectionData) {
                         break;
                     case "loadOptionsMenu":
                         Q.MenuController.makeMenu(state, r.menu, r.selected);
-                        if(r.playSound){
-                            Q.AudioController.playSound("change-menu");
+                        if(r.sound){
+                            Q.AudioController.playSound(r.sound);
                         }
                         break;
                     case "rollDie":
@@ -163,6 +163,13 @@ Q.socket.on('connected', function (connectionData) {
                         Q.GameController.buyShop(state, player, shop, r.couponValue);
                         Q.GameController.endTurn(state);
                         break;
+                    case "sellShop":
+                        var shop = Q.MapController.getTileAt(state, r.loc);
+                        if(r.sellTo){
+                            r.sellTo = Q.GameController.getPlayer(state, r.id);
+                        }
+                        Q.GameController.sellShop(state, shop, r.value, r.sellTo);
+                        break;
                     case "askToBuyShop":
                         Q.GameController.askToBuyShop(state, player, Q.MapController.getTileAt(state, r.loc));
                         break;
@@ -205,13 +212,9 @@ Q.socket.on('connected', function (connectionData) {
                         break;
                     case "finalizeInvestInShop":
                         Q.GameController.investInShop(state, r.investAmount);
-                        Q.MenuController.makeMenu(state, "playerTurnMenu", [0, 0]);
-                        Q.AudioController.playSound("purchase-item");
                         break;
                     case "finalizeUpgradeShop":
                         Q.GameController.upgradeShop(state, r.rankUp, r.cost);
-                        Q.MenuController.makeMenu(state, "playerTurnMenu", [0, 0]);
-                        Q.AudioController.playSound("purchase-item");
                         break;
                 }
             });/*

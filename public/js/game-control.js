@@ -53,11 +53,12 @@ Quintus.GameControl = function(Q) {
                             return props;
                         },
                         confirmFalse: (state) => {
+                            let props = [{func: "clearStage", num: 2}];
                             let move = Q.GameController.checkFinishMove(state, player);
                             if(move){
-                                move = [{func: "clearStage", num: 2}, move];
+                                props.push(move);
                             }
-                            return move;
+                            return props;
                         }
                     });
                     return true;
@@ -80,11 +81,12 @@ Quintus.GameControl = function(Q) {
                             return props;
                         },
                         confirmFalse: () => {
+                            let props = [{func: "clearStage", num: 2}];
                             let move = Q.GameController.checkFinishMove(state, player);
                             if(move){
-                                move = [{func: "clearStage", num: 2}, move];
+                                props.push(move);
                             }
-                            return move;
+                            return props;
                         }
                     });
                     return true;
@@ -921,6 +923,8 @@ Quintus.GameControl = function(Q) {
                 Q.stage(1).insert(new Q.TurnAnimation());
                 Q.inputs["confirm"] = false;
             }
+            
+            
         },
         buyShop: function(state, player, shop, couponPercentage){
             let couponValue = ~~(shop.value * couponPercentage);
@@ -947,6 +951,28 @@ Quintus.GameControl = function(Q) {
             shop.ownedBy = player;
             Q.GameController.adjustShopValues(state, player, shop);
             Q.GameController.adjustShopValues(state, shop.ownedBy, shop);
+        },
+        sellShop: function(state, shop, price, sellTo){
+            Q.GameController.changePlayerMoney(shop.ownedBy, price);
+            Q.GameController.changePlayerNetValue(shop.ownedBy, -shop.value + price);
+            Q.GameController.adjustShopValues(state, shop.ownedBy, shop);
+            
+            shop.ownedBy = sellTo;
+            if(shop.ownedBy){
+                Q.GameController.changePlayerMoney(shop.ownedBy, -price);
+                Q.GameController.changePlayerNetValue(shop.ownedBy, -price + shop.value);
+                Q.GameController.adjustShopValues(state, shop.ownedBy, shop);
+                
+            } else {
+                shop.cost = Q.MapController.generateShopCost(shop.initialValue, shop.rank, shop.investedCapital, 1);
+                shop.maxCapital = Q.MapController.generateShopMaxCapital(shop.initialValue, shop.rank, shop.investedCapital);
+                if(!Q.isServer()){
+                    shop.sprite.updateTile();
+                }
+            }
+            if(!Q.isServer()){
+                Q.AudioController.playSound("purchase-item");
+            }
         },
         //Changes the value of shops in the district based on the number that the player owns.
         adjustShopValues: function(state, player, shop){
@@ -1039,7 +1065,10 @@ Quintus.GameControl = function(Q) {
                     break;
                 case "auctionMenu":
                     state.inputState.shop = props.shop;
-                    
+                    Q.MenuController.makeDialogueMenu(state, "auctionMenu");
+                    if(!Q.isServer()){
+                        Q.stageScene("auctionMenu", 3, props);
+                    }
                     break;
                 case "setsMenu":
                     Q.MenuController.initializeConfirmer(state);
@@ -1056,13 +1085,14 @@ Quintus.GameControl = function(Q) {
             }
             return {func: "makeCustomMenu", menu: menu};
         },
-        makeMenu: function(state, menu, selected){
+        makeMenu: function(state, menu, selected, playSound){
             state.inputState = Q.MenuController.inputStates[menu];
             Q.MenuController.initializeMenu(state, state.inputState, selected);
             if(state.inputState.preDisplay) state.inputState.preDisplay(state);
             if(!Q.isServer()){
                 Q.stageScene("menu", 2, {menu: state.inputState, selected: selected || [0, 0], state: state});
             }
+            return {func: "loadOptionsMenu", menu: menu, selected: selected, playSound: playSound};
         },
         makeMoveShopSelector: function(state, confirmType, backFunc, startPos, selType){
             let goBack, finish, selectType;
@@ -1105,17 +1135,23 @@ Quintus.GameControl = function(Q) {
                 case "toShopsMenu":
                     goBack = function(state, backOption){
                         let backOpt = backOption === "invest" ? [0, 0] : backOption === "upgrade" ? [0, 1] : [0, 2];
-                        Q.MenuController.makeMenu(state, "shopsMenu", backOpt);
                         state.shopSelector = false;
-                        return [{func: "setQValue", path: "preventMultipleInputs", value: true}, {func: "removeItem", item: "shopSelector"}, {func: "loadOptionsMenu", menu: "shopsMenu", selected: backOpt}];
+                        return [
+                            {func: "setQValue", path: "preventMultipleInputs", value: true}, 
+                            {func: "removeItem", item: "shopSelector"}, 
+                            Q.MenuController.makeMenu(state, "shopsMenu", backOpt)
+                        ];
                     };
                     break;
                 case "toViewMenu":
                     goBack = function(state, backOption){
                         let backOpt = [0, 0];
-                        Q.MenuController.makeMenu(state, "viewMenu", backOpt);
                         state.shopSelector = false;
-                        return [{func: "setQValue", path: "preventMultipleInputs", value: true}, {func: "removeItem", item: "shopSelector"}, {func: "loadOptionsMenu", menu: "viewMenu", selected: backOpt}];
+                        return [
+                            {func: "setQValue", path: "preventMultipleInputs", value: true}, 
+                            {func: "removeItem", item: "shopSelector"}, 
+                            Q.MenuController.makeMenu(state, "viewMenu", backOpt)
+                        ];
                     };
                     break;
                 default: 
@@ -1154,8 +1190,10 @@ Quintus.GameControl = function(Q) {
                     //Otherwise, invest that amount into the shop.
                     else {
                         Q.GameController.investInShop(state, investAmount);
-                        Q.MenuController.makeMenu(state, "playerTurnMenu", [0, 0]);
-                        return {func: "finalizeInvestInShop", investAmount: investAmount};
+                        return [
+                            {func: "finalizeInvestInShop", investAmount: investAmount},
+                            Q.MenuController.makeMenu(state, "playerTurnMenu", [0, 0], "purchase-item")
+                        ];
                     }
                 },
                 goBack: (state) => {
@@ -1174,8 +1212,10 @@ Quintus.GameControl = function(Q) {
                     let rankUp = 1;
                     if(playerMoney >= cost && shop.rank < 5){
                         Q.GameController.upgradeShop(state, rankUp, cost);
-                        Q.MenuController.makeMenu(state, "playerTurnMenu", [0, 0]);
-                        return {func: "finalizeUpgradeShop", cost: cost, rankUp: rankUp};
+                        return [
+                            {func: "finalizeUpgradeShop", cost: cost, rankUp: rankUp},
+                            Q.MenuController.makeMenu(state, "playerTurnMenu", [0, 0], "purchase-item")
+                        ];
                     } else {
                         return {func: "invalidAction"};
                     }
@@ -1185,8 +1225,73 @@ Quintus.GameControl = function(Q) {
                 }
             },
             auctionMenu: {
-                
-            },  
+                func: "navigateMenu",
+                text: ["How would you like to auction this shop?"],
+                options: [
+                    ["Normal", "normalAuction"],
+                    ["Blind", "blindAuction"],
+                    ["Back", "goBack"]
+                ],
+                getValidParticipants: (players, shop) => {
+                    //If there are 2+ players who have enough money to bid, start the bidding process, otherwise sell to the bank for 0.75 of the value.
+                    
+                    let validParticipants = [];
+                    //Start at 1 since 0 is the active player.
+                    for(let i = 1; i < players.length; i++){
+                        if(players[i].money >= shop.value){
+                            validParticipants.push(players[i]);
+                        }
+                    }
+                    return validParticipants;
+                },
+                sellToBank: (state, shop) => {
+                    let value = ~~(shop.value * 0.75);
+                    let sellTo = false;
+                    Q.GameController.sellShop(state, shop, value, sellTo);
+                    return {func: "sellShop", value: value, loc: shop.loc, sellTo: sellTo};
+                },
+                normalAuction: (state) => {
+                    //Players bid until the timer goes down to 0. Bids set the timer to 5 seconds.
+                    let players = state.turnOrder;
+                    let shop = state.inputState.shop;
+                    let valid = Q.MenuController.inputStates.auctionMenu.getValidParticipants(players, shop);
+                    if(valid.length >= 2){
+                        
+                    } 
+                    else {
+                        return [
+                            {func: "clearStage", num: 2},
+                            {func: "clearStage", num: 3},
+                            Q.MenuController.inputStates.auctionMenu.sellToBank(state, shop),
+                            Q.MenuController.makeMenu(state, "playerTurnMenu", [0, 0], "purchase-item")
+                        ];
+                    }
+                },
+                blindAuction: (state) => {
+                    //Players get one bid and whoever bids the highest gets the shop.
+                    //All forced shop auctions are this type.
+                    let players = state.turnOrder;
+                    let shop = state.inputState.shop;
+                    let valid = Q.MenuController.inputStates.auctionMenu.getValidParticipants(players, shop);
+                    if(valid.length >= 2){
+                        
+                    }
+                    else {
+                        return [
+                            {func: "clearStage", num: 2},
+                            {func: "clearStage", num: 3},
+                            Q.MenuController.inputStates.auctionMenu.sellToBank(state, shop),
+                            Q.MenuController.makeMenu(state, "playerTurnMenu", [0, 0], "purchase-item")
+                        ];
+                    }
+                },
+                goBack: (state) => {
+                    return [
+                        {func: "clearStage", num: 2},
+                        Q.MenuController.makeMenu(state, "shopsMenu", [0, 2])
+                    ];
+                }
+            },
             askExchangeSets: {
                 func: "navigateMenu",
                 text: ["Looks like you've got a set! \nWhich one would you like to exchange?"]
@@ -1274,16 +1379,13 @@ Quintus.GameControl = function(Q) {
                     return state.inputState;
                 },
                 showShopsMenu: (state) => {
-                    Q.MenuController.makeMenu(state, "shopsMenu");
-                    return {func: "loadOptionsMenu", menu: "shopsMenu", selected: [0, 0], playSound: true};
+                    return Q.MenuController.makeMenu(state, "shopsMenu", [0, 0], "change-menu");
                 },
                 showStocksMenu: (state) => {
-                    Q.MenuController.makeMenu(state, "stocksMenu");
-                    return {func: "loadOptionsMenu", menu: "stocksMenu", selected: [0, 0], playSound: true};
+                    return Q.MenuController.makeMenu(state, "stocksMenu", [0, 0], "change-menu");
                 },
                 showItemsMenu: (state) => {
-                    Q.MenuController.makeMenu(state, "itemsMenu");
-                    return {func: "loadOptionsMenu", menu: "itemsMenu", selected: [0, 0], playSound: true};
+                    return Q.MenuController.makeMenu(state, "itemsMenu", [0, 0], "change-menu");
                 },
                 showDealMenu: (state) => {
                     //This might actually be a custom menu.
@@ -1292,8 +1394,7 @@ Quintus.GameControl = function(Q) {
                     return {func: "loadOptionsMenu", menu: "dealMenu", selected: [0, 0], playSound: true};*/
                 },
                 showViewMenu: (state) => {
-                    Q.MenuController.makeMenu(state, "viewMenu");
-                    return {func: "loadOptionsMenu", menu: "viewMenu", selected: [0, 0], playSound: true};
+                    return Q.MenuController.makeMenu(state, "viewMenu", [0, 0], "change-menu");
                 },
                 showOptions: () => {
                     
@@ -1330,14 +1431,7 @@ Quintus.GameControl = function(Q) {
                     return {func: "invalidAction"};
                 },
                 goBack: (state) => {
-                    state.inputState = Q.MenuController.inputStates.playerTurnMenu;
-                    let selected = [0, 1];
-                    Q.MenuController.initializeMenu(state, state.inputState, selected);
-                    if(!Q.isServer()){
-                        Q.stageScene("menu", 2, {menu: state.inputState, selected: selected, options: state.itemGrid, state: state});
-                        Q.AudioController.playSound("change-menu");
-                    }
-                    return {func: "loadOptionsMenu", selected: selected, menu: "playerTurnMenu", playSound: true};
+                    return Q.MenuController.makeMenu(state, "playerTurnMenu", [0, 1], "change-menu");
                 },
                 //Gives the active player a cursor that they can move around the map to select a shop.
                 //What happens after selecting the shop is determined by the passed in type
@@ -1540,8 +1634,6 @@ Quintus.GameControl = function(Q) {
                     let tileOn = Q.MapController.getTileAt(state, player.loc);
                     let ownedBy = tileOn.ownedBy;
                     Q.GameController.buyOutShop(state, player, tileOn);
-                    //Q.MenuController.turnOffStandardInputs();
-                    
                     Q.GameController.endTurn(state);
                     return {func: "buyOutShop", loc: player.loc};
                 },
@@ -1753,9 +1845,12 @@ Quintus.GameControl = function(Q) {
                 if(state.inputState.forceRoll){
                     return {func: "invalidAction"};
                 } else {
-                    Q.MenuController.makeMenu(state, "playerTurnMenu", [0, 0]);
                     state.currentMovementNum = false;
-                    return [{func: "removeItem", item: "dice"}, {func:"setStateValue", path: "currentMovementNum", value: false}, {func: "loadOptionsMenu", menu: "playerTurnMenu", selected: [0, 0]}];
+                    return [
+                        {func: "removeItem", item: "dice"}, 
+                        {func:"setStateValue", path: "currentMovementNum", value: false}, 
+                        Q.MenuController.makeMenu(state, "playerTurnMenu", [0, 0])
+                    ];
                 }
             }
         }

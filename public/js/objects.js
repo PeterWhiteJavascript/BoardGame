@@ -53,11 +53,17 @@ Quintus.Objects = function(Q) {
         },
         //Set the color of the background, as well as the position of the cost text
         updateTile: function(color){
-            this.p.valueText.p.y = Q.c.tileH * 1.35;
             this.p.valueText.p.label = "" + this.tileData.cost;
             //Todo: animate this and then set it
-            this.p.propertyIcon.p.sheet = "tile-structure-" + this.tileData.rank;
-            this.p.backgroundColor.p.fill = color;
+            if(!color){
+                this.p.valueText.p.y = 10;
+                this.p.propertyIcon.p.sheet = "shop-for-sale-signpost";
+                this.p.backgroundColor.p.fill = "lightgrey";
+            } else {
+                this.p.valueText.p.y = Q.c.tileH * 1.35;
+                this.p.propertyIcon.p.sheet = "tile-structure-" + this.tileData.rank;
+                this.p.backgroundColor.p.fill = color;
+            }
         }
     });
     Q.Sprite.extend("Player", {
@@ -733,7 +739,6 @@ Quintus.Objects = function(Q) {
         let shop = stage.options.shop;
         let digits = stage.options.cycler;
         let currentItem = stage.options.currentItem || [digits - 1, 0];
-        console.log(currentItem)
         let menuBox = stage.insert(new Q.StandardMenu({x: Q.width / 2 - 350, y: Q.height / 2 - 250, w: 700, h: 500}));
         menuBox.insert(new Q.StandardText({x: menuBox.p.w / 2, y: 30, label: "Invest in " + shop.name, align: "middle"}));
         stage.numberCycler = menuBox.insert(new Q.NumberCycler({digits: digits, x: menuBox.p.w / 2, y: 100}));
@@ -742,9 +747,13 @@ Quintus.Objects = function(Q) {
         let baseTileDetails = menuBox.insert(new Q.ShopStatusBox({x: 20, y: menuBox.p.h / 2 - 40, w: Q.c.boxWidth, h: Q.c.boxHeight, radius: 0, shopLoc: shop.loc, stage: stage}));
         Q.GameState.currentCont.tileDetails = menuBox.insert(new Q.ShopStatusBox({x:menuBox.p.w - Q.c.boxWidth - 20, y: menuBox.p.h / 2 - 40, w: Q.c.boxWidth, h: Q.c.boxHeight, radius: 0, shopLoc: shop.loc, stage: stage}));
     });
-    
     Q.scene("upgradeMenu", function(stage){
         console.log("showing upgrade menu");
+    });
+    Q.scene("auctionMenu", function(stage){
+        let shop = stage.options.shop;
+        let menuBox = stage.insert(new Q.StandardMenu({x: Q.width / 2 - 350, y: Q.height / 2 - 250, w: 700, h: 500}));
+        let baseTileDetails = menuBox.insert(new Q.ShopStatusBox({x: menuBox.p.w / 4 + 10, y: menuBox.p.h / 4, w: Q.c.boxWidth, h: Q.c.boxHeight, radius: 0, shopLoc: shop.loc, stage: stage}));
     });
     Q.scene("setsMenu", function(stage){
         stage.insert(new Q.SetsMenu({player: Q.GameState.turnOrder[0]})); 
