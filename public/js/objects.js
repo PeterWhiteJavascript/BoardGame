@@ -19,7 +19,7 @@ Quintus.Objects = function(Q) {
         inserted: function(){
             switch(this.p.type){
                 case "shop":
-                    this.p.borderColor = this.stage.insert(new Q.UI.Container({w: this.p.w - 6, h: this.p.h - 6, x: 3, y: 3, cx:0, cy:0, border: 5, stroke: Q.GameState.map.data.districts[this.tileData.district].color, fill: "transparent"}), this);
+                    this.p.borderColor = this.stage.insert(new Q.UI.Container({w: this.p.w - 6, h: this.p.h - 6, x: 3, y: 3, cx:0, cy:0, border: 5, stroke: Q.GameState.map.districts[this.tileData.district].color, fill: "transparent"}), this);
                     this.p.propertyIcon = this.stage.insert(new Q.Sprite({x:Q.c.tileW / 2, y: 0, cx:0, cy:0, sheet: "shop-for-sale-signpost", frame: 0}), this);
                     this.p.valueText = this.stage.insert(new Q.UI.Text({x:Q.c.tileW, y: 10, label:"" + this.tileData.value, size: 18}), this);
                     break;
@@ -317,7 +317,7 @@ Quintus.Objects = function(Q) {
                     });
                     if(onHover) {
                         button.on("hover", function(){
-                            onHover(button);
+                            onHover(button, i);
                         });
                     }
                     this.p.menuButtons[i].push(button);
@@ -501,9 +501,11 @@ Quintus.Objects = function(Q) {
             let distance = 16;
             //Pulse the tile that the player is on
             let player = this.p.player;
+            this.miniTiles = [];
             for(let i = 0; i < map.tiles.length; i++){
                 let tile = map.tiles[i];
-                let miniTile = mapObj.insert(new Q.UI.Container({x: (tile.loc[0] - map.centerX) * distance, y: (tile.loc[1] - map.centerY) * distance, w: 24, h: 16, fill: "transparent", radius: 1, border: 2, stroke: "black"}));
+                let miniTile = mapObj.insert(new Q.UI.Container({x: (tile.loc[0] - map.centerX) * distance, y: (tile.loc[1] - map.centerY) * distance, w: 24, h: 16, fill: "transparent", radius: 1, border: 2, stroke: "black", district: tile.district}));
+                miniTile.add("tween");
                 switch(tile.type){
                     case "main":
                         miniTile.insert(new Q.UI.Text({label: "H", size: 12, y: -miniTile.p.h / 2 + 1}));
@@ -518,18 +520,29 @@ Quintus.Objects = function(Q) {
                         if(tile.ownedBy){
                             miniTile.p.fill = tile.ownedBy.color;
                         }
-                        miniTile.p.stroke = Q.GameState.map.data.districts[tile.district].color;
+                        miniTile.p.stroke = Q.GameState.map.districts[tile.district].color;
                         break;
                 }
-                if(Q.locsMatch(player.loc, tile.loc)){
-                    miniTile.add("tween");
-                    function animate(){
-                        miniTile.animate({ opacity: 0.1 }, 1, Q.Easing.Linear)
-                            .chain({ opacity: 1 }, 0.5, Q.Easing.Quadratic.InOut, {callback: () => {animate();}});
-                    }
-                    animate();
+                if(player && Q.locsMatch(player.loc, tile.loc)){
+                    this.pulseTile(miniTile);
                 }
+                this.miniTiles.push(miniTile);
             }
+        },
+        pulseDistrictTiles: function(district){
+            this.miniTiles.forEach((tile) => {
+                if(tile.p.district === district){
+                    this.pulseTile(tile);
+                } else if(tile.p.district >= 0){
+                    tile.stop();
+                    tile.p.opacity = 1;
+                }
+            });
+        },
+        pulseTile: function(tile){
+            let t = this;
+            tile.animate({ opacity: 0.1 }, 0.5, Q.Easing.Linear)
+                .chain({ opacity: 0.9 }, 0.5, Q.Easing.Linear, {callback: () => {t.pulseTile(tile);}});
         }
     });
     
@@ -599,8 +612,8 @@ Quintus.Objects = function(Q) {
                         this.shopTextCont.show();
                         this.shopRankContainer.show();
 
-                        this.districtCont.p.fill = Q.GameState.map.data.districts[shop.district].color;
-                        this.districtCont.text.p.label = "District " + (shop.district + 1);
+                        this.districtCont.p.fill = Q.GameState.map.districts[shop.district].color;
+                        this.districtCont.text.p.label = Q.GameState.map.districts[shop.district].name;
 
                         this.shopName.p.label = shop.name;
                         this.shopRankContainer.insertStars(shop.rank);
@@ -670,17 +683,28 @@ Quintus.Objects = function(Q) {
         },
         adjustedNumber: function(state){
             let value = Q.MenuController.getValueFromNumberCycler(state);
-            let td = state.currentCont.tileDetails;
-            let shop = Q.stage(2).options.shop;
-            let newCapital = shop.maxCapital - value;
-            if(newCapital < 0) {
-                newCapital = 0;
-                value = shop.maxCapital;
+            switch(state.inputState.menu){
+                case "investMenu":
+                    let td = state.currentCont.tileDetails;
+                    let shop = Q.stage(2).options.shop;
+                    let newCapital = shop.maxCapital - value;
+                    if(newCapital < 0) {
+                        newCapital = 0;
+                        value = shop.maxCapital;
+                    }
+                    let newCost = Q.MapController.generateShopCost(shop.initialValue, shop.rank, shop.investedCapital + value, Q.MapController.getShopsOwnedInDistrict(state, shop).length);
+                    td.valueText.text.p.label =  (shop.initialValue * shop.rank + shop.investedCapital + value) + " G";
+                    td.pricesText.text.p.label = newCost + " G";
+                    td.capitalText.text.p.label = newCapital + " G";
+                    break;
+                case "buyStockCyclerMenu":
+                    
+                    
+                    
+                    break;
             }
-            let newCost = Q.MapController.generateShopCost(shop.initialValue, shop.rank, shop.investedCapital + value, Q.MapController.getShopsOwnedInDistrict(state, shop).length);
-            td.valueText.text.p.label =  (shop.initialValue * shop.rank + shop.investedCapital + value) + " G";
-            td.pricesText.text.p.label = newCost + " G";
-            td.capitalText.text.p.label = newCapital + " G";
+            
+            
             
         },
         inserted: function(){
@@ -755,11 +779,62 @@ Quintus.Objects = function(Q) {
         let menuBox = stage.insert(new Q.StandardMenu({x: Q.width / 2 - 350, y: Q.height / 2 - 250, w: 700, h: 500}));
         let baseTileDetails = menuBox.insert(new Q.ShopStatusBox({x: menuBox.p.w / 4 + 10, y: menuBox.p.h / 4, w: Q.c.boxWidth, h: Q.c.boxHeight, radius: 0, shopLoc: shop.loc, stage: stage}));
     });
+    Q.scene("districtMenu", function(stage){
+        Q.GameState.mapMenu = stage.insert(new Q.MapMenu());
+    });
+    Q.scene("buyStockCyclerMenu", function(stage){
+        let digits = stage.options.cycler;
+        let currentItem = stage.options.currentItem || [digits - 1, 0];
+        let district = Q.GameState.map.districts[stage.options.district];
+        console.log(stage.options)
+        let menuBox = stage.insert(new Q.StandardMenu({x: Q.width / 2 - 350, y: Q.height / 2 - 250, w: 700, h: 500}));
+        menuBox.insert(new Q.StandardText({x: menuBox.p.w / 2, y: 30, label: "Buy stock in " + district.name, align: "middle"}));
+        stage.numberCycler = menuBox.insert(new Q.NumberCycler({digits: digits, x: menuBox.p.w / 2, y: 100}));
+        stage.numberCycler.p.menuButtons[currentItem[0]][currentItem[1]].selected();
+        Q.GameState.currentCont = stage.numberCycler;
+        
+    });
+    //Displays how much stock each player has in each district in table format.
+    Q.scene("checkStockMenu", function(stage){
+        let players = Q.GameState.players;
+        let districts = Q.GameState.map.districts;
+        
+        let menuBox = stage.insert(new Q.StandardMenu({x: Q.width / 2 - 350, y: Q.height / 2 - 250, w: 700, h: 500}));
+        let table = menuBox.insert(new Q.UI.Container({x: 10, y: 10, w: menuBox.p.w - 20, h: menuBox.p.h - 20, fill: "grey", cx: 0, cy:0}));        
+        let sx = 75;
+        let sy = 10;
+        let tw = 100;
+        let th = 80;
+        table.insert(new Q.UI.Text({label: "Mx. ST", x: sx + tw, y: sy}));
+        table.insert(new Q.UI.Text({label: "Avail.", x: sx + tw * 2, y: sy}));
+        table.insert(new Q.UI.Text({label: "Value", x: sx + tw * 3, y: sy}));
+        for(let i = 0; i < players.length; i++){
+            table.insert(new Q.Sprite({sheet: "player-icon-1", frame:0, x: sx + tw * (4 + i), y: sy * 2}));
+        }
+        
+        
+        for(let i = 0; i < districts.length; i++){
+            let d = districts[i];
+            let colY = sy + th * (i + 1);
+            table.insert(new Q.UI.Text({label: d.name, x: sx, y: colY}));
+            table.insert(new Q.UI.Text({label: "" + d.totalStock, x: sx + tw, y: colY}));
+            table.insert(new Q.UI.Text({label: "" + d.stockAvailable, x: sx + tw * 2, y: colY}));
+            table.insert(new Q.UI.Text({label: "" + d.stockPrice, x: sx + tw * 3, y: colY}));
+            //Create a row for each district
+            for(let j = 0; j < players.length; j++){
+                let p = players[j];
+                //Create an entry for each player starting after the stock cost column.
+                table.insert(new Q.UI.Text({label: "" + p.stocks[i].num, x: sx + tw * (j + 4), y: colY}));
+            }
+        }
+        
+        
+    });
     Q.scene("setsMenu", function(stage){
         stage.insert(new Q.SetsMenu({player: Q.GameState.turnOrder[0]})); 
     });
     Q.scene("mapMenu", function(stage){
-        stage.insert(new Q.MapMenu({player: Q.GameState.turnOrder[0]}));
+        Q.GameState.mapMenu = stage.insert(new Q.MapMenu({player: Q.GameState.turnOrder[0]}));
     });
     
     

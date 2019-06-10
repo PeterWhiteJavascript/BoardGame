@@ -37,7 +37,7 @@ Quintus.Game = function(Q) {
             //Include this if we want to see the edge of the map.
             //stage.insert(new Q.MapBorder({w: mapData.data.map.w * Q.c.tileW, h: mapData.data.map.h * Q.c.tileH}));
             
-            Q.stageScene("hud", 3);
+            Q.stageScene("hud", 5);
 
             stage.on("step", function(){
                 if(!Q.isActiveUser()) return;

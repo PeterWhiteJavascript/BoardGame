@@ -93,6 +93,9 @@ Q.socket.on('connected', function (connectionData) {
                     case "useItem":
                         Q.GameController.useItem(state, r.itemIdx);
                         break;
+                    /*case "initializeNumberCycler":
+                        Q.MenuController.initializeNumberCycler(state, r.props);
+                        break;*/
                     case "makeDialogueMenu":
                         Q.MenuController.makeDialogueMenu(state, r.menu);
                         break;
@@ -215,6 +218,9 @@ Q.socket.on('connected', function (connectionData) {
                         break;
                     case "finalizeUpgradeShop":
                         Q.GameController.upgradeShop(state, r.rankUp, r.cost);
+                        break;
+                    case "finalizeBuyStock":
+                        Q.GameController.buyStock(Q.GameController.getPlayer(state, r.playerId), r.num, r.cost, state.map.districts[r.district]);
                         break;
                 }
             });/*

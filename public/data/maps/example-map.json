@@ -21,8 +21,8 @@
         {
             "x": 4,
             "y": 2,
-            "value": 120,
-            "rank": 1,
+            "value": 220,
+            "rank": 2,
             "name": "Lemonade Stall",
             "type": "shop",
             "district": 0
