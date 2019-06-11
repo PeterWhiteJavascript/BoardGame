@@ -717,9 +717,11 @@ Quintus.Objects = function(Q) {
     });
     
     Q.scene("dialogue", function(stage){
+        let state = stage.options.state;
         let dialogueBox = stage.insert(new Q.StandardMenu({x: Q.width / 2 - 350, y:Q.height - 210, w: 700, h: 200}));
         let textArea = dialogueBox.insert(new Q.UI.Container({x:10, y:10, cx:0, cy:0, w:490, h:180}));
         let optionsArea = dialogueBox.insert(new Q.MenuButtonContainer({x:510, y:5, cx:0, cy:0, w:185, h:190}));
+        state.currentCont = optionsArea;
         if(stage.options.dialogue.onLoadMenu) stage.options.dialogue.onLoadMenu(stage);
         
         optionsArea.p.dialogue = stage.options.dialogue.text;
@@ -731,7 +733,7 @@ Quintus.Objects = function(Q) {
             stage.off("step", Q.MenuController, "acceptInputs");
             let item = dialogue[idx];
             idx ++;
-            if(!item) return Q.MenuController.returnToGame();
+            if(!item) alert("No Text Item!");
             
             if(textArea.p.text) textArea.p.text.destroy();
             textArea.p.text = textArea.insert(new Q.ScrollingText({label:item}));
@@ -744,6 +746,8 @@ Quintus.Objects = function(Q) {
             }
         }
         processDialogue();
+        stage.options.selected = stage.options.dialogue.selected  || [0, 0];
+        state.currentCont.p.menuButtons[stage.options.selected[1]][stage.options.selected[0]].hover();
     });
     
     Q.scene("menu", function(stage){
@@ -786,14 +790,24 @@ Quintus.Objects = function(Q) {
         let digits = stage.options.cycler;
         let currentItem = stage.options.currentItem || [digits - 1, 0];
         let district = Q.GameState.map.districts[stage.options.district];
-        console.log(stage.options)
         let menuBox = stage.insert(new Q.StandardMenu({x: Q.width / 2 - 350, y: Q.height / 2 - 250, w: 700, h: 500}));
         menuBox.insert(new Q.StandardText({x: menuBox.p.w / 2, y: 30, label: "Buy stock in " + district.name, align: "middle"}));
         stage.numberCycler = menuBox.insert(new Q.NumberCycler({digits: digits, x: menuBox.p.w / 2, y: 100}));
         stage.numberCycler.p.menuButtons[currentItem[0]][currentItem[1]].selected();
         Q.GameState.currentCont = stage.numberCycler;
-        
     });
+    
+    Q.scene("sellStockCyclerMenu", function(stage){
+        let digits = stage.options.cycler;
+        let currentItem = stage.options.currentItem || [digits - 1, 0];
+        let district = Q.GameState.map.districts[stage.options.district];
+        let menuBox = stage.insert(new Q.StandardMenu({x: Q.width / 2 - 350, y: Q.height / 2 - 250, w: 700, h: 500}));
+        menuBox.insert(new Q.StandardText({x: menuBox.p.w / 2, y: 30, label: "Sell stock in " + district.name, align: "middle"}));
+        stage.numberCycler = menuBox.insert(new Q.NumberCycler({digits: digits, x: menuBox.p.w / 2, y: 100}));
+        stage.numberCycler.p.menuButtons[currentItem[0]][currentItem[1]].selected();
+        Q.GameState.currentCont = stage.numberCycler;
+    });
+    
     //Displays how much stock each player has in each district in table format.
     Q.scene("checkStockMenu", function(stage){
         let players = Q.GameState.players;

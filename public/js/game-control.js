@@ -708,6 +708,11 @@ Quintus.GameControl = function(Q) {
             player.stocks[district.id].num += num;
             Q.GameController.changePlayerMoney(player, -price);
         },
+        sellStock: function(player, num, price, district){
+            district.stockAvailable += num;
+            player.stocks[district.id].num -= num;
+            Q.GameController.changePlayerMoney(player, price);
+        },
         changePlayerRank: function(player, rank){
             player.rank += rank;
         },
@@ -1086,7 +1091,7 @@ Quintus.GameControl = function(Q) {
     Q.GameObject.extend("menuController", {
         makeDialogueMenu: function(state, menu, dialogue){
             state.inputState = dialogue ? {...dialogue, ...Q.MenuController.inputStates[menu]} : Q.MenuController.inputStates[menu];
-            Q.MenuController.initializeMenu(state, state.inputState);
+            Q.MenuController.initializeMenu(state, state.inputState, state.inputState.selected);
             if(state.inputState.preDisplay) state.inputState.preDisplay(state);
             if(!Q.isServer()){
                 Q.stageScene("dialogue", 2, {dialogue: state.inputState, state: state});
@@ -1134,7 +1139,17 @@ Quintus.GameControl = function(Q) {
                     }
                     break;
                 case "sellStockMenu":
-                
+                    if(!Q.isServer()){
+                        Q.stageScene("districtMenu", 3, props);
+                    }
+                    Q.MenuController.makeDialogueMenu(state, "districtMenu", props);
+                    break;
+                case "sellStockCyclerMenu":
+                    state.inputState.district = state.map.districts[props.district];
+                    Q.MenuController.initializeNumberCycler(state, props);
+                    if(!Q.isServer()){
+                        Q.stageScene("sellStockCyclerMenu", 2, props);
+                    }
                     break;
                 case "checkStockMenu":
                     Q.MenuController.initializeConfirmer(state);
@@ -1544,11 +1559,11 @@ Quintus.GameControl = function(Q) {
                     ["Check Stock", "showCheckStockMenu"],
                     ["Back", "goBack"]
                 ],
-                showBuyStockMenu: (state) => {
-                    return Q.MenuController.makeCustomMenu(state, "buyStockMenu", {type: "buyStock", prev: ["stocksMenu", [0, 0]]});
+                showBuyStockMenu: (state, selected) => {
+                    return Q.MenuController.makeCustomMenu(state, "buyStockMenu", {type: "buyStock", prev: ["stocksMenu", [0, 0]], selected: selected});
                 },
-                showSellStockMenu: (state) => {
-                    return Q.MenuController.makeCustomMenu(state, "sellStockMenu", {type: "sellStock", prev: ["stocksMenu", [0, 1]]});
+                showSellStockMenu: (state, selected) => {
+                    return Q.MenuController.makeCustomMenu(state, "sellStockMenu", {type: "sellStock", prev: ["stocksMenu", [0, 1]], selected: selected});
                 },
                 showCheckStockMenu: (state) => {
                     return Q.MenuController.makeCustomMenu(state, "checkStockMenu", {type: "checkStock", prev: ["stocksMenu", [0, 2]]});
@@ -1568,6 +1583,9 @@ Quintus.GameControl = function(Q) {
                         case "buyStock":
                             state.inputState.text = ["Select a district to buy stock in."];
                             break;
+                        case "sellStock":
+                            state.inputState.text = ["Select the district you want to sell stock in."];
+                            break;
                     }
                 },
                 options: [],
@@ -1583,7 +1601,13 @@ Quintus.GameControl = function(Q) {
                             return [
                                 {func: "clearStage", num: 2},
                                 {func: "clearStage", num: 3},
-                                Q.MenuController.makeCustomMenu(state, "buyStockCyclerMenu", {cycler: 3, district: itemIdx})
+                                Q.MenuController.makeCustomMenu(state, "buyStockCyclerMenu", {cycler: 4, district: itemIdx})
+                            ];
+                        case "sellStock":
+                            return [
+                                {func: "clearStage", num: 2},
+                                {func: "clearStage", num: 3},
+                                Q.MenuController.makeCustomMenu(state, "sellStockCyclerMenu", {cycler: 4, district: itemIdx})
                             ];
                     }
                 },
@@ -1608,15 +1632,47 @@ Quintus.GameControl = function(Q) {
                         return Q.MenuController.setNumberCyclerValue(state, newAmount);
                     }
                     else {
-                        Q.GameController.buyStock(player, stockNumber, stockCost, district);
-                        return [
-                            {func: "finalizeBuyStock", num: stockNumber, cost: stockCost, district: state.inputState.district.id, playerId: player.playerId},
-                            Q.MenuController.makeMenu(state, "playerTurnMenu", [0, 0], "purchase-item")
-                        ];
+                        if(stockNumber === 0){
+                            return Q.MenuController.inputStates.buyStockCyclerMenu.goBack(state);
+                        } else {
+                            Q.GameController.buyStock(player, stockNumber, stockCost, district);
+                            return [
+                                {func: "finalizeBuyStock", num: stockNumber, cost: stockCost, district: state.inputState.district.id, playerId: player.playerId},
+                                Q.MenuController.makeMenu(state, "playerTurnMenu", [0, 0], "purchase-item")
+                            ];
+                        }
                     }
                 },  
                 goBack: (state) => {
-                    return Q.MenuController.inputStates.stocksMenu.showBuyStockMenu(state);
+                    return Q.MenuController.inputStates.stocksMenu.showBuyStockMenu(state, [0, state.inputState.district.id]);
+                }
+            },
+            sellStockCyclerMenu: {
+                func: "controlNumberCycler",
+                confirm: (state) => {
+                    let stockNumber = Q.MenuController.getValueFromNumberCycler(state);
+                    let district = state.inputState.district;
+                    //If the invest amount is greater than allowed, set the amount to the allowed amount.
+                    let stockCost = stockNumber * district.stockPrice;
+                    let player = state.turnOrder[0];
+                    if(stockNumber > player.stocks[district.id].num){
+                        let newAmount = player.stocks[district.id].num;
+                        return Q.MenuController.setNumberCyclerValue(state, newAmount);
+                    }
+                    else {
+                        if(stockNumber === 0){
+                            return Q.MenuController.inputStates.sellStockCyclerMenu.goBack(state);
+                        } else {
+                            Q.GameController.sellStock(player, stockNumber, stockCost, district);
+                            return [
+                                {func: "finalizeSellStock", num: stockNumber, cost: stockCost, district: state.inputState.district.id, playerId: player.playerId},
+                                Q.MenuController.makeMenu(state, "playerTurnMenu", [0, 0], "purchase-item")
+                            ];
+                        }
+                    }
+                },  
+                goBack: (state) => {
+                    return Q.MenuController.inputStates.stocksMenu.showSellStockMenu(state, [0, state.inputState.district.id]);
                 }
             },
             checkStockMenu: {
