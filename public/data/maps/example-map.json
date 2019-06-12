@@ -252,7 +252,7 @@
     },
     "modes": {
         "ffa": {
-            "startMoney": 2000,
+            "startMoney": 1000,
             "goal": 20000,
             "bankruptcyLimit": 3
         },
