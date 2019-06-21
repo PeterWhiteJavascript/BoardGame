@@ -80,6 +80,32 @@ Quintus.Game = function(Q) {
                 Q.socket.emit('inputted', inputs);
             });
             Q.GameController.startTurn(Q.GameState);
+            
+            
+            function i(inputs){return 
+                let inter = setInterval(function(){
+                    Q.inputs[inputs[0]] = true;
+                    inputs.splice(0, 1);
+                    if(!inputs) clearInterval(inter);
+                }, 50);
+            }
+            i([
+            "down",
+            "down",
+            "down",
+            "down",
+            "confirm",
+            "confirm",
+            "confirm",
+            "down",
+            "down",
+            "down",
+            "down",
+            "confirm",
+            "confirm",
+            "down",
+            "confirm"
+            ]);
         });
     });
     Q.scene("hud", function(stage){
@@ -93,7 +119,7 @@ Quintus.Game = function(Q) {
             let playerCont = standingsCont.insert(new Q.UI.Container({x: 5, y: 5 + i * ~~((standingsCont.p.h - 5) / 4), w: standingsCont.p.w - 10, h: standingsCont.p.h / 4 - 5, fill: "white", cx:0, cy:0 }));
             let playerIconContainer = playerCont.insert(new Q.UI.Container({x: 5 + 20, y: playerCont.p.h / 2, w: playerCont.p.h, h: playerCont.p.h, radius:3,  fill: player.color/*"transparent"*/}));
             let playerIcon = playerIconContainer.insert(new Q.Sprite({x: 0, y: 0, sheet: "player-icon-1", frame:0}));
-            let playerName = playerCont.insert(new Q.SmallText({x: 60, y: 5, label:"Player " + player.playerId, cx:0, cy:0, color: "#111", align: "left"}));
+            let playerName = playerCont.insert(new Q.SmallText({x: 60, y: 5, label: player.name, cx:0, cy:0, color: "#111", align: "left"}));
             let playerMoney = playerCont.insert(new Q.SmallText({x: 60, y: 25, label:player.money + " G", cx:0, cy:0, color: "#111", align: "left"}));
             player.sprite.on("moneyChanged", () => {
                 playerMoney.p.label = player.money + " G";

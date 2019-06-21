@@ -68,7 +68,7 @@ Server.prototype.addUserToGame = function(user, socket, room){
             map: "example-map.json",
             settings:{
                 mode: "ffa",
-                numOfPlayers:1
+                numOfPlayers:2
             }
         });
     } else {
@@ -112,6 +112,21 @@ io.on('connection', function (socket) {
     });
     //Adds the user to the game room. Creates a game if there isn't one available.
     let game = serv.addUserToGame(user, socket, user.gameRoom);
+    
+    
+    
+    //TEMP
+    let dummy = serv.createNewUser({
+            gameRoom: "room" + serv.gameID
+        })
+        dummy.ready = true;
+    serv.addUserToGame(
+        dummy, 
+        socket, 
+        user.gameRoom
+    );
+    //END TEMP
+    
     //Confirm with the client that a connection has occured
     socket.emit("connected", {
         loadFiles: serv.loadFiles, 

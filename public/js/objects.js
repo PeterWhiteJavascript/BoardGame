@@ -293,7 +293,7 @@ Quintus.Objects = function(Q) {
             }
         },
         displayOptions: function(onHover){
-            let options = Q.GameState.itemGrid;
+            let options = Q.GameState.menus[0].itemGrid;
             let cursor = new Q.Cursor();
             this.p.menuButtons = [];
             let menuButtonCont = this;
@@ -683,9 +683,9 @@ Quintus.Objects = function(Q) {
         },
         adjustedNumber: function(state){
             let value = Q.MenuController.getValueFromNumberCycler(state);
-            switch(state.inputState.menu){
+            switch(state.menus[0].data.menu){
                 case "investMenu":
-                    let td = state.currentCont.tileDetails;
+                    let td = state.menus[0].currentCont.tileDetails;
                     let shop = Q.stage(2).options.shop;
                     let newCapital = shop.maxCapital - value;
                     if(newCapital < 0) {
@@ -716,15 +716,47 @@ Quintus.Objects = function(Q) {
         }
     });
     
+    Q.UI.Container.extend("DealItem", {
+        init: function(p){
+            this._super(p, {
+                w: 120,
+                h: 50,
+                fill: "grey"
+            });
+            let yPos = (Q.GameState.currentDeal[Q.GameState.currentDeal.currentSelection].length - 1) * 50;
+            this.p.y = yPos;
+            this.on("inserted");
+        },
+        inserted: function(){
+            switch(this.p.type){
+                case "shop":
+                
+                    break
+                case "stock":
+                
+                    break;
+                case "money":
+                
+                    break;
+                case "item":
+                    this.insert(new Q.UI.Text({label: this.p.item.name, y: -this.p.h / 4}));
+                    break;
+                case "setPiece":
+                    this.insert(new Q.UI.Text({label: this.p.item, y: -this.p.h / 4}));
+                    break;
+            }
+        }
+    });
+    
     Q.scene("dialogue", function(stage){
-        let state = stage.options.state;
+        let state = Q.GameState;
         let dialogueBox = stage.insert(new Q.StandardMenu({x: Q.width / 2 - 350, y:Q.height - 210, w: 700, h: 200}));
         let textArea = dialogueBox.insert(new Q.UI.Container({x:10, y:10, cx:0, cy:0, w:490, h:180}));
         let optionsArea = dialogueBox.insert(new Q.MenuButtonContainer({x:510, y:5, cx:0, cy:0, w:185, h:190}));
-        state.currentCont = optionsArea;
-        if(stage.options.dialogue.onLoadMenu) stage.options.dialogue.onLoadMenu(stage);
+        state.menus[0].currentCont = optionsArea;
+        if(state.menus[0].data.onLoadMenu) state.menus[0].data.onLoadMenu(stage);
         
-        optionsArea.p.dialogue = stage.options.dialogue.text;
+        optionsArea.p.dialogue = state.menus[0].data.text;
         optionsArea.p.idx = 0;
         function processDialogue(){
             let dialogue = optionsArea.p.dialogue;
@@ -738,29 +770,28 @@ Quintus.Objects = function(Q) {
             if(textArea.p.text) textArea.p.text.destroy();
             textArea.p.text = textArea.insert(new Q.ScrollingText({label:item}));
             textArea.p.text.on("doneScrolling", processDialogue);
-            Q.GameState.currentCont = textArea.p.text;
+            state.menus[0].currentCont = textArea.p.text;
             
             if(!dialogue[idx + 1]){
-                Q.GameState.currentCont = optionsArea;
-                Q.GameState.currentCont.displayOptions(stage.options.dialogue.onHoverOption);
+                state.menus[0].currentCont = optionsArea;
+                state.menus[0].currentCont.displayOptions(state.menus[0].data.onHoverOption);
             }
         }
         processDialogue();
-        stage.options.selected = stage.options.dialogue.selected  || [0, 0];
-        state.currentCont.p.menuButtons[stage.options.selected[1]][stage.options.selected[0]].hover();
+        let selected = state.menus[0].data.selected  || [0, 0];
+        state.menus[0].currentCont.p.menuButtons[selected[1]][selected[0]].hover();
     });
     
     Q.scene("menu", function(stage){
-        stage.options.selected = stage.options.selected || [0, 0];
-        let menu = stage.options.menu;
-        let state = stage.options.state;
-        let options = Q.GameState.itemGrid;
+        let state = Q.GameState;
+        let selected = state.menus[0].data.selected || [0, 0];
+        let options = state.menus[0].itemGrid;
         let menuBox = stage.insert(new Q.UI.Container({x: 50, y:50, w: 195, h: options.length * 40 + 15 , cx:0, cy:0, fill: Q.OptionsController.options.menuColor, opacity:0.8, border:1}));
         
         let optionsArea = menuBox.insert(new Q.MenuButtonContainer({x:5, y:5, cx:0, cy:0, w:menuBox.p.w - 10, h:menuBox.p.h - 10, fill: Q.OptionsController.options.menuColor}));
-        state.currentCont = optionsArea;
-        state.currentCont.displayOptions();
-        state.currentCont.p.menuButtons[stage.options.selected[1]][stage.options.selected[0]].hover();
+        state.menus[0].currentCont = optionsArea;
+        state.menus[0].currentCont.displayOptions();
+        state.menus[0].currentCont.p.menuButtons[selected[1]][selected[0]].hover();
     });
     
     Q.scene("investMenu", function(stage){
@@ -771,9 +802,9 @@ Quintus.Objects = function(Q) {
         menuBox.insert(new Q.StandardText({x: menuBox.p.w / 2, y: 30, label: "Invest in " + shop.name, align: "middle"}));
         stage.numberCycler = menuBox.insert(new Q.NumberCycler({digits: digits, x: menuBox.p.w / 2, y: 100}));
         stage.numberCycler.p.menuButtons[currentItem[0]][currentItem[1]].selected();
-        Q.GameState.currentCont = stage.numberCycler;
+        Q.GameState.menus[0].currentCont = stage.numberCycler;
         let baseTileDetails = menuBox.insert(new Q.ShopStatusBox({x: 20, y: menuBox.p.h / 2 - 40, w: Q.c.boxWidth, h: Q.c.boxHeight, radius: 0, shopLoc: shop.loc, stage: stage}));
-        Q.GameState.currentCont.tileDetails = menuBox.insert(new Q.ShopStatusBox({x:menuBox.p.w - Q.c.boxWidth - 20, y: menuBox.p.h / 2 - 40, w: Q.c.boxWidth, h: Q.c.boxHeight, radius: 0, shopLoc: shop.loc, stage: stage}));
+        Q.GameState.menus[0].currentCont.tileDetails = menuBox.insert(new Q.ShopStatusBox({x:menuBox.p.w - Q.c.boxWidth - 20, y: menuBox.p.h / 2 - 40, w: Q.c.boxWidth, h: Q.c.boxHeight, radius: 0, shopLoc: shop.loc, stage: stage}));
     });
     Q.scene("upgradeMenu", function(stage){
         console.log("showing upgrade menu");
@@ -786,6 +817,83 @@ Quintus.Objects = function(Q) {
     Q.scene("districtMenu", function(stage){
         Q.GameState.mapMenu = stage.insert(new Q.MapMenu());
     });
+    
+    Q.UI.Container.extend("DealMenu", {
+        init: function(p){
+            this._super(p, {
+                x: Q.width / 2 - 350, 
+                y: Q.height / 2 - 250, 
+                w: 700,
+                h: 500,
+                cx:0, 
+                cy:0, 
+                fill: Q.OptionsController.options.menuColor, 
+                opacity:0.8, 
+                border:1
+            });
+            this.on("inserted");
+        },
+        inserted: function(){
+            let dealWith = this.p.dealWith;
+            let player = this.p.player;
+            
+            let reqBox = this.insert(new Q.StandardMenu({x: 10, y: 10, w: this.p.w / 2 - 15, h: this.p.h - 20, fill: "orange"}));
+            reqBox.insert(new Q.UI.Text({x: reqBox.p.w / 2, y: 10, label: "Requested from " + dealWith.name}));
+            let totalReqCont = reqBox.insert(new Q.UI.Container({x: reqBox.p.w / 2, y: 50, w: reqBox.p.w / 2, h: 50}));
+            this.requestedG = totalReqCont.insert(new Q.UI.Text({label: "0G", x: 0, y: 0}));
+            this.reqItemsList = reqBox.insert(new Q.MenuItemsList({x: reqBox.p.w / 2, y: 100, w: reqBox.p.w / 2, h: 50}));
+            
+            let tradeBox = this.insert(new Q.StandardMenu({x: 5 + this.p.w / 2, y: 10, w: this.p.w / 2 - 15, h: this.p.h - 20, fill: "orange"}));
+            tradeBox.insert(new Q.UI.Text({x: tradeBox.p.w / 2, y: 10, label: "Items to trade"}));
+            let totalTradeCont = tradeBox.insert(new Q.UI.Container({x: tradeBox.p.w / 2, y: 50, w: tradeBox.p.w / 2, h: 50}));
+            this.tradeG = totalTradeCont.insert(new Q.UI.Text({label: "0G", x: 0, y: 0}));
+            this.tradeItemsList = tradeBox.insert(new Q.MenuItemsList({x: tradeBox.p.w / 2, y: 100, w: tradeBox.p.w / 2, h: 50}));
+        },
+        updateG: function(){
+            if(Q.GameState.currentDeal.currentSelection === "requested"){
+                this.requestedG.p.label = Q.GameState.currentDeal.requestedG + "G";
+            } else {
+                this.tradeG.p.label = Q.GameState.currentDeal.tradeG + "G";
+            }
+        },
+        addToDeal: function(props){
+            if(Q.GameState.currentDeal.currentSelection === "requested"){
+                this.reqItemsList.addItem(props);
+                this.requestedG.p.label = Q.GameState.currentDeal.requestedG + "G";
+            } else {
+                this.tradeItemsList.addItem(props);
+                this.tradeG.p.label = Q.GameState.currentDeal.tradeG + "G";
+            }
+        },
+        removeFromDeal: function(itemIdx){
+            if(Q.GameState.currentDeal.currentSelection === "requested"){
+                this.reqItemsList.removeItem(itemIdx);
+            } else {
+                this.tradeItemsList.removeItem(itemIdx);
+            }
+        }
+    });
+    
+    Q.UI.Container.extend("MenuItemsList", {
+        init: function(p){
+            this._super(p, {
+                menuButtons:[]
+            });
+        },
+        addItem: function(props){
+            this.p.menuButtons.push(this.insert(new Q.DealItem(props)));
+        },
+        removeItem: function(idx){
+            this.p.menuButtons.splice(idx, 1).destroy();
+        }
+    });
+    Q.scene("dealMenu", function(stage){
+        Q.GameState.dealMenu = stage.insert(new Q.DealMenu({
+            dealWith: Q.GameController.getPlayer(Q.GameState, stage.options.player), 
+            player: Q.GameState.turnOrder[0]
+        }));
+    });
+    
     Q.scene("buyStockCyclerMenu", function(stage){
         let digits = stage.options.cycler;
         let currentItem = stage.options.currentItem || [digits - 1, 0];
@@ -794,7 +902,7 @@ Quintus.Objects = function(Q) {
         menuBox.insert(new Q.StandardText({x: menuBox.p.w / 2, y: 30, label: "Buy stock in " + district.name, align: "middle"}));
         stage.numberCycler = menuBox.insert(new Q.NumberCycler({digits: digits, x: menuBox.p.w / 2, y: 100}));
         stage.numberCycler.p.menuButtons[currentItem[0]][currentItem[1]].selected();
-        Q.GameState.currentCont = stage.numberCycler;
+        Q.GameState.menus[0].currentCont = stage.numberCycler;
     });
     
     Q.scene("sellStockCyclerMenu", function(stage){
@@ -805,7 +913,7 @@ Quintus.Objects = function(Q) {
         menuBox.insert(new Q.StandardText({x: menuBox.p.w / 2, y: 30, label: "Sell stock in " + district.name, align: "middle"}));
         stage.numberCycler = menuBox.insert(new Q.NumberCycler({digits: digits, x: menuBox.p.w / 2, y: 100}));
         stage.numberCycler.p.menuButtons[currentItem[0]][currentItem[1]].selected();
-        Q.GameState.currentCont = stage.numberCycler;
+        Q.GameState.menus[0].currentCont = stage.numberCycler;
     });
     
     //Displays how much stock each player has in each district in table format.
@@ -841,9 +949,10 @@ Quintus.Objects = function(Q) {
                 table.insert(new Q.UI.Text({label: "" + p.stocks[i].num, x: sx + tw * (j + 4), y: colY}));
             }
         }
-        
-        
     });
+    
+    
+    
     Q.scene("setsMenu", function(stage){
         stage.insert(new Q.SetsMenu({player: Q.GameState.turnOrder[0]})); 
     });

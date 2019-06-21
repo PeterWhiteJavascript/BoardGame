@@ -1,3 +1,39 @@
+var camera, scene, renderer;
+var geometry, material, mesh;
+
+init();
+animate();
+
+function init() {
+
+    camera = new THREE.PerspectiveCamera( 70, window.innerWidth / window.innerHeight, 0.01, 10 );
+    camera.position.z = 1;
+
+    scene = new THREE.Scene();
+
+    geometry = new THREE.BoxGeometry( 0.2, 0.2, 0.2 );
+    material = new THREE.MeshNormalMaterial();
+
+    mesh = new THREE.Mesh( geometry, material );
+    scene.add( mesh );
+
+    renderer = new THREE.WebGLRenderer( { antialias: true } );
+    renderer.setSize( window.innerWidth, window.innerHeight );
+    document.body.appendChild( renderer.domElement );
+
+}
+
+function animate() {
+
+    requestAnimationFrame( animate );
+
+    mesh.rotation.x += 0.01;
+    mesh.rotation.y += 0.02;
+
+    renderer.render( scene, camera );
+
+}
+
 $(function() {
 var Q = window.Q = Quintus({audioSupported: ['mp3','ogg','wav']}) 
         .include("Sprites, Scenes, Input, 2D, Anim, Touch, UI, Audio, Game, Objects, Utility, Animations, Viewport, GameControl, Music")
@@ -93,23 +129,20 @@ Q.socket.on('connected', function (connectionData) {
                     case "useItem":
                         Q.GameController.useItem(state, r.itemIdx);
                         break;
-                    /*case "initializeNumberCycler":
-                        Q.MenuController.initializeNumberCycler(state, r.props);
-                        break;*/
-                    case "makeDialogueMenu":
-                        Q.MenuController.makeDialogueMenu(state, r.menu, r.props);
-                        break;
                     case "makeCustomMenu":
-                        state.inputState = Q.MenuController.makeCustomMenu(state, r.menu, r.props);
+                        Q.MenuController.makeCustomMenu(state, r.menu, r.props);
                         break;
                     case "navigateMenu":
                         Q.MenuController.setMenuPosition(state, r.item);
                         break;
-                    case "loadOptionsMenu":
-                        Q.MenuController.makeMenu(state, r.menu, r.selected);
-                        if(r.sound){
-                            Q.AudioController.playSound(r.sound);
+                    case "makeMenu":
+                        Q.MenuController.makeMenu(state, r.props);
+                        if(r.props.sound){
+                            Q.AudioController.playSound(r.props.sound);
                         }
+                        break;
+                    case "switchMenu":
+                        Q.MenuController.switchMenu(state, r.props);
                         break;
                     case "rollDie":
                         Q.GameController.startRollingDie(state, r.rollsNums, player.sprite);
@@ -173,21 +206,17 @@ Q.socket.on('connected', function (connectionData) {
                         }
                         Q.GameController.sellShop(state, shop, r.value, r.sellTo);
                         break;
-                    case "askToBuyShop":
-                        Q.GameController.askToBuyShop(state, player, Q.MapController.getTileAt(state, r.loc));
-                        break;
                     case "payOwnerOfShop":
                         Q.GameController.payOwnerOfShop(state, player, Q.MapController.getTileAt(state, r.loc));
                         break;
                     case "buyOutShop":
                         Q.GameController.buyOutShop(state, player, Q.MapController.getTileAt(state, r.loc));
-                        Q.GameController.endTurn(state);
                         break;
                     case "endTurn":
                         Q.GameController.endTurn(state);
                         break;
                     case "goBackMenu":
-                        Q.GameState.inputState.goBack(state);
+                        state.menus[0].data.goBack(state);
                         break;
                     case "makeMoveShopSelector":
                         Q.MenuController.makeMoveShopSelector(state, r.confirmType, r.backFunc, r.startPos);
@@ -200,17 +229,17 @@ Q.socket.on('connected', function (connectionData) {
                         break;
                     case "controlNumberCycler":
                         if(r.item){
-                            state.currentItem = r.item;
-                            state.currentCont.p.menuButtons[state.currentItem[0]][state.currentItem[1]].selected();
+                            state.menus[0].currentItem = r.item;
+                            state.menus[0].currentCont.p.menuButtons[state.menus[0].currentItem[0]][state.menus[0].currentItem[1]].selected();
                             Q.AudioController.playSound("change-number-cycler");
                         } else if(r.num >= 0){
-                            state.itemGrid[state.currentItem[1]][state.currentItem[0]][0] = r.num;
-                            state.currentCont.p.menuButtons[state.currentItem[0]][state.currentItem[1]].changeLabel(state.itemGrid[state.currentItem[1]][state.currentItem[0]][0]);
-                            state.currentCont.trigger("adjustedNumber", state);
+                            state.menus[0].itemGrid[state.menus[0].currentItem[1]][state.menus[0].currentItem[0]][0] = r.num;
+                            state.menus[0].currentCont.p.menuButtons[state.menus[0].currentItem[0]][state.menus[0].currentItem[1]].changeLabel(state.menus[0].itemGrid[state.menus[0].currentItem[1]][state.menus[0].currentItem[0]][0]);
+                            state.menus[0].currentCont.trigger("adjustedNumber", state);
                             Q.AudioController.playSound("change-number-cycler");
                         } else if(r.value >= 0){
                             Q.MenuController.setNumberCyclerValue(state, r.value);
-                            state.currentCont.trigger("adjustedNumber", state);
+                            state.menus[0].currentCont.trigger("adjustedNumber", state);
                         }
                         break;
                     case "finalizeInvestInShop":
@@ -225,25 +254,15 @@ Q.socket.on('connected', function (connectionData) {
                     case "finalizeSellStock":
                         Q.GameController.sellStock(Q.GameController.getPlayer(state, r.playerId), r.num, r.cost, state.map.districts[r.district]);
                         break;
+                    case "addToDeal":
+                        Q.GameController.addToDeal(state, r.props);
+                        Q.GameState.dealMenu.addToDeal(r.props);
+                        break;
+                    case "clearMenus":
+                        Q.MenuController.clearMenus(state, r.type);
+                        break;
                 }
-            });/*
-            if(data.remove){
-                data.remove.forEach((r) => {
-                    switch(r){
-                        case "shopSelector":
-                            state.shopSelector.sprite.destroy();
-                            state.shopSelector = false;
-                            break;
-                    }
-                });
-            }
-            if(data.preventMultipleInputs !== undefined){
-                Q.preventMutileInputs = data.preventMultipleInputs;
-            }
-            
-            switch(data.func){
-                
-            }*/
+            });
         };
         Q.socket.on("inputResult", Q.applyInputResult);
         

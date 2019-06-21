@@ -62,11 +62,10 @@
         {
             "x": 0,
             "y": 4,
-            "value": 100,
-            "rank": 1,
-            "name": "Candy Store",
-            "type": "shop",
-            "district": 2
+            "name": "Cashew Vendor",
+            "type": "vendor",
+            "item": "Cashew",
+            "price": 0.5
         },
         {
             "x": 2,
@@ -100,7 +99,8 @@
             "y": 8,
             "name": "Peanut Vendor",
             "type": "vendor",
-            "item": ["Peanut", 5]
+            "item": "Peanut",
+            "price": 1
         },
         {
             "x": 8,
@@ -116,7 +116,8 @@
             "y": 8,
             "name": "Almond Vendor",
             "type": "vendor",
-            "item": ["Almond", 25]
+            "item": "Almond",
+            "price": 1
         },
         {
             "x": 12,
@@ -181,7 +182,8 @@
             "y": 0,
             "name": "Cashew Vendor",
             "type": "vendor",
-            "item": ["Cashew", 150]
+            "item": "Cashew",
+            "price": 1
         },
         {
             "x": 10,
@@ -245,6 +247,11 @@
             "value": 500
         }
     ],
+    "setPieces":{
+        "Peanut": 5,
+        "Almond": 25,
+        "Cashew": 150
+    },
     "map": {
         "w": 20,
         "h": 20,
